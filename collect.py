@@ -131,12 +131,18 @@ def main():
     known = {v["video_id"]: v for v in load_json(VIDEOS_FILE, [])}
 
     try:
+        current = set()
         for ch in cfg:
             found = channel_videos(ch)
             new = [v for v in found if v["video_id"] not in known]
             for v in found:
                 known.setdefault(v["video_id"], v)
+                current.add(v["video_id"])
             print(f"{ch['name']}: 대상 영상 {len(found)}개 (새 영상 {len(new)}개)")
+        # 키워드를 바꿔 더는 해당하지 않는 영상은 목록에서 뺌(이미 추출한 영상은 남김)
+        ext_dir = os.path.join(os.path.dirname(COMMENTS_DIR), "extracted")
+        known = {k: v for k, v in known.items()
+                 if k in current or os.path.exists(os.path.join(ext_dir, k + ".json"))}
         save_json(VIDEOS_FILE, list(known.values()))
 
         todo = [v for v in known.values() if not os.path.exists(os.path.join(COMMENTS_DIR, v["video_id"] + ".json"))]

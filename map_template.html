@@ -196,7 +196,7 @@ function popup(s) {
   el.innerHTML = `<h3>${esc(s.name)}</h3>
     <div>${s.fishing ? '<span class="tag tf">낚시</span>' : ""}${s.chabak ? '<span class="tag tc">차박</span>' : ""}<span class="meta">${esc(s.kind)} · ${esc(s.region)} · 영상 ${s.videos_n}개</span></div>
     ${s.species.length ? `<div class="sec"><b>어종</b>${esc(s.species.join(", "))}</div>` : ""}
-    ${(s.points || []).length ? `<div class="sec"><b>세부 포인트</b>${s.points.map(p => "· " + esc(p)).join("<br>")}</div>` : ""}
+    ${(s.points || []).length ? `<div class="sec"><b>세부 포인트</b>${s.points.map(p => `<div class="pt">· <b>${esc(p.n)}</b>${p.d ? `<br><span>${esc(p.d)}</span>` : ""}</div>`).join("")}</div>` : ""}
     ${facs ? `<div class="sec fac"><b>편의시설</b>${facs}</div>` : ""}
     ${s.toilets.length ? `<div class="sec"><b>근처 공중화장실</b>${s.toilets.map(t => `${esc(t.name)} ${t.m}m`).join(" · ")}</div>` : ""}
     ${s.view.length ? `<div class="sec"><b>뷰</b>${esc(s.view.join(", "))}</div>` : ""}
@@ -221,7 +221,7 @@ function popup(s) {
 SPOTS.forEach((s, i) => {
   s.id = i; s.today = todayIndex(s);
   s.marker = L.marker([s.lat, s.lon], {icon: pinIcon(s), title: s.name}).bindPopup(() => popup(s), {maxWidth: 320});
-  s.hay = [s.name, s.region, s.kind, s.aliases, ...(s.points || []), ...s.species, ...s.view].join(" ").toLowerCase();
+  s.hay = [s.name, s.region, s.kind, s.aliases, ...(s.points || []).map(p => p.n + " " + p.d),...s.species, ...s.view].join(" ").toLowerCase();
 });
 [...new Set(SPOTS.map(s => s.region.split(" ")[0]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko"))
   .forEach(r => $("region").insertAdjacentHTML("beforeend", `<option>${esc(r)}</option>`));

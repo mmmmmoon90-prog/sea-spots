@@ -170,22 +170,60 @@ def main():
                 mentions.append((rec["video"], s))
     print(f"장소 언급 {len(mentions)}건")
 
-    places, missing = {}, []
+    # 1차: 이름 그대로 → 안 되면 상위 장소 이름(사천진항 1번 방파제 → 사천진항)으로 위치 확인
+    located = []  # (video, s, g, point여부)
     for i, (video, s) in enumerate(mentions, 1):
         name, region = s["name"].strip(), (s.get("region") or "").strip()
-        g, point = geocode(name, region, geo), None
-        if not g:  # 세부 포인트면 상위 장소(항구·방조제 등)에 붙임
+        g, is_point = geocode(name, region, geo), False
+        if not g:
             for b in base_names(name):
                 g = geocode(b, region, geo)
                 if g:
-                    point = name
+                    is_point = True
                     break
+        located.append((video, s, g, is_point))
         if i % 200 == 0:
             save_json(GEO_CACHE, geo)
             print(f"  위치 확인 {i}/{len(mentions)}", flush=True)
+
+    # 2차: 지도에 이름 자체가 없는 곳('A포인트 4-90번 구역' 등)은 같은 영상에서 찾은 대표 장소(항구 우선)에 붙임
+    by_video = defaultdict(list)
+    for video, s, g, is_point in located:
+        if g:
+            by_video[video["video_id"]].append((s, g))
+    resolved, missing = [], []
+    for video, s, g, is_point in located:
         if not g:
-            missing.append((video, s))
-            continue
+            name = s["name"].strip()
+            cands = by_video.get(video["video_id"], [])
+            same = [c for c in cands if not s.get("region") or (c[0].get("region") or "") == s.get("region")] or cands
+            hit = next((c for c in same if simplify(c[1]["place_name"]) in simplify(name)
+                        or simplify(c[0]["name"]) in simplify(name)), None)  # '너울쉼터 근처' → 너울쉼터
+            if not hit:
+                ports = [c for c in same if re.search(r"(항|포구|방조제|방파제|선착장)$", c[1]["place_name"])]
+                pool = ports or same
+                if pool:
+                    top = Counter(c[1]["place_name"] for c in pool).most_common(1)[0][0]
+                    hit = next(c for c in pool if c[1]["place_name"] == top)
+            if not hit:
+                missing.append((video, s))
+                continue
+            g, is_point = hit[1], True
+        resolved.append((video, s, g, is_point))
+
+    places = {}
+    for video, s, g, is_point in resolved:
+        name = s["name"].strip()
+        point = None
+        if is_point:
+            bits = []
+            if s.get("species"):
+                bits.append("어종 " + ", ".join(s["species"][:5]))
+            bits += (s.get("tips") or [])[:2]
+            bits += ["주의: " + w for w in (s.get("warnings") or [])[:1]]
+            if s.get("chabak") and not s.get("fishing"):
+                bits.insert(0, "차박")
+            point = {"n": name, "d": " · ".join(bits)[:160]}
         pid = re.search(r"(\d+)\s*$", g["url"] or "")
         key = "k" + pid.group(1) if pid else f"p{round(g['lat'], 4)}_{round(g['lon'], 4)}"
         p = places.setdefault(key, {
@@ -195,8 +233,11 @@ def main():
             "warnings": [], "reviews": [], "videos": {}, "aliases": set(), "points": []})
         p["region"] = norm_region(g["addr_region"])
         if point:
-            if point not in p["points"]:
+            old = next((x for x in p["points"] if x["n"] == point["n"]), None)
+            if not old:
                 p["points"].append(point)
+            elif not old["d"]:
+                old["d"] = point["d"]
         else:
             p["aliases"].add(name)
         p["videos"][video["video_id"]] = {"title": video["title"], "channel": video["channel"]}
@@ -281,7 +322,7 @@ def write_excel(spots, missing):
     for s in sorted(spots, key=lambda s: (s["region"], -s["videos_n"])):
         f = s["fac"]
         ws.append([s["region"], s["name"], s["kind"], "O" if s["fishing"] else "", "O" if s["chabak"] else "",
-                   s["videos_n"], " / ".join(s["points"]), ", ".join(s["species"]), yn[f.get("toilet")], yn[f.get("flush_toilet")],
+                   s["videos_n"], " / ".join(p["n"] + (f" ({p['d']})" if p["d"] else "") for p in s["points"]), ", ".join(s["species"]), yn[f.get("toilet")], yn[f.get("flush_toilet")],
                    yn[f.get("water")], yn[f.get("free")], yn[f.get("cooking_ok")],
                    ", ".join(f'{t["name"]}({t["m"]}m)' for t in s["toilets"]), ", ".join(s["view"]),
                    " / ".join(s["tips"]), " / ".join(s["warnings"]), s["good"], s["bad"], s["address"], s["kakao"]])
