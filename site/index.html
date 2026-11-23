@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>바다낚시·차박 지도</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<style>
+:root{
+  --bg:#eef4f6; --panel:#fbfdfd; --ink:#11252e; --muted:#5f7680; --line:#d6e3e8; --chip:#e4eef1;
+  --fish:#1673b5; --camp:#d9822b; --both:#6a4fc2; --ok:#2f8f5b; --ok-bg:#e3f3ea; --warn:#c0392b; --warn-bg:#fdecea;
+  --shadow:0 8px 30px rgba(10,40,55,.16);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0e1a20; --panel:#14232b; --ink:#e6f0f3; --muted:#93a9b2; --line:#263a44; --chip:#1c2f38;
+  --fish:#4aa3e8; --camp:#f0a457; --both:#a08cf0; --ok:#4fc283; --ok-bg:#1d3326; --warn:#ff7a6b; --warn-bg:#3a1f1c;
+  --shadow:0 8px 30px rgba(0,0,0,.5);
+}}
+:root[data-theme="dark"]{
+  --bg:#0e1a20; --panel:#14232b; --ink:#e6f0f3; --muted:#93a9b2; --line:#263a44; --chip:#1c2f38;
+  --fish:#4aa3e8; --camp:#f0a457; --both:#a08cf0; --ok:#4fc283; --ok-bg:#1d3326; --warn:#ff7a6b; --warn-bg:#3a1f1c;
+  --shadow:0 8px 30px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif}
+#app{display:grid;grid-template-columns:390px 1fr;height:100dvh}
+#side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;z-index:2}
+header{padding:16px 18px 10px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:20px;font-weight:900;letter-spacing:-.02em}
+h1 .f{color:var(--fish)} h1 .c{color:var(--camp)}
+.sub{margin:4px 0 10px;color:var(--muted);font-size:12px;line-height:1.5}
+input,select{font:inherit;font-size:14px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.row{display:grid;grid-template-columns:1fr auto;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--bg);color:var(--muted);border-radius:20px;padding:5px 10px;cursor:pointer}
+.chip.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+#count{font-size:12px;color:var(--muted);padding:7px 18px;border-bottom:1px solid var(--line)}
+.note{font-size:11.5px;color:var(--muted);padding:0 18px 6px}
+#list{overflow:auto;flex:1;min-height:0}
+.item{padding:11px 18px;border-bottom:1px solid var(--line);cursor:pointer}
+.item:hover,.item.on{background:var(--chip)}
+.name{font-weight:700;font-size:15px}
+.tag{display:inline-block;font-size:11px;font-weight:700;border-radius:20px;padding:1px 7px;margin-right:4px;vertical-align:1px}
+.tf{background:color-mix(in srgb,var(--fish) 15%,transparent);color:var(--fish)}
+.tc{background:color-mix(in srgb,var(--camp) 18%,transparent);color:var(--camp)}
+.td{background:var(--ok-bg);color:var(--ok)}
+.meta{font-size:12px;color:var(--muted);margin-top:3px}
+.icons{font-size:12px;margin-top:4px;color:var(--ink)}
+.memo-line{font-size:12px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#map{height:100%;z-index:1}
+.pin{width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:grid;place-items:center;border:2px solid var(--panel);box-shadow:var(--shadow);color:#fff;position:relative}
+.pin b{transform:rotate(45deg);font-size:13px}
+.pin.fish{background:var(--fish)} .pin.camp{background:var(--camp)} .pin.both{background:var(--both)}
+.pin.done::after{content:"✓";position:absolute;right:-6px;top:-6px;transform:rotate(45deg);width:16px;height:16px;border-radius:50%;background:var(--ok);color:#fff;font-size:10px;display:grid;place-items:center;font-weight:900}
+.marker-cluster{background:transparent}
+.marker-cluster div{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:var(--panel);font-weight:900;font-size:13px;border:3px solid var(--panel);box-shadow:var(--shadow)}
+.leaflet-popup-content-wrapper{background:var(--panel);color:var(--ink);border-radius:14px;box-shadow:var(--shadow)}
+.leaflet-popup-tip{background:var(--panel)}
+.leaflet-popup-content{margin:14px 16px;font-family:inherit;width:290px!important;max-height:62vh;overflow:auto}
+.pop h3{margin:0 0 4px;font-size:16px}
+.sec{margin-top:10px;font-size:12.5px;line-height:1.55}
+.sec b{display:block;font-size:11.5px;color:var(--muted);margin-bottom:2px}
+.fac span{display:inline-block;margin:0 6px 4px 0;padding:2px 8px;border-radius:20px;background:var(--chip);font-size:12px}
+.fac .y{background:var(--ok-bg);color:var(--ok)} .fac .n{opacity:.55;text-decoration:line-through}
+.warn{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:7px 9px}
+.rev{background:var(--chip);border-radius:8px;padding:6px 8px;margin-top:4px}
+table.idx{border-collapse:collapse;width:100%;font-size:12px}
+table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:3px 4px;text-align:left}
+.lv{font-weight:700} .lv.g{color:var(--ok)} .lv.b{color:var(--warn)}
+.links a{color:var(--fish);font-weight:700;font-size:13px;margin-right:12px;text-decoration:none}
+.mine{border-top:1px dashed var(--line);margin-top:10px;padding-top:10px}
+.visit{font:inherit;font-weight:700;font-size:13px;width:100%;border-radius:10px;padding:8px;cursor:pointer;border:1.5px solid var(--ok);background:transparent;color:var(--ok)}
+.visit.on{background:var(--ok);color:#fff}
+.mine textarea{font:inherit;font-size:13px;width:100%;margin-top:8px;min-height:60px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--bg);color:var(--ink)}
+.saved{font-size:11px;color:var(--muted);margin-top:4px;min-height:14px}
+#toggle{display:none}
+@media (max-width:760px){
+  #app{grid-template-columns:1fr}
+  #map,#side{grid-row:1;grid-column:1}
+  #side{align-self:end;height:50dvh;border-right:0;border-top:1px solid var(--line);border-radius:18px 18px 0 0;box-shadow:var(--shadow);transition:height .25s}
+  #side.min{height:160px}
+  #toggle{display:block;width:44px;height:5px;border-radius:5px;background:var(--line);margin:0 auto 8px;border:0}
+  .sub{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <header>
+      <button id="toggle" aria-label="목록 접기"></button>
+      <h1><span class="f">바다낚시</span>·<span class="c">차박</span> 지도</h1>
+      <p class="sub">유튜브 영상·댓글에서 모은 장소예요. 금지구역·야영 규정은 바뀔 수 있으니 출발 전에 지자체 안내를 꼭 확인하세요.</p>
+      <div class="row">
+        <input id="q" type="search" placeholder="장소·어종·지역 검색 (예: 감성돔, 거제)">
+        <select id="region"><option value="">전체 지역</option></select>
+      </div>
+      <div class="chips" data-g="layer">
+        <button class="chip on" data-v="all">전체</button>
+        <button class="chip" data-v="fish">🎣 낚시</button>
+        <button class="chip" data-v="camp">🚐 차박</button>
+      </div>
+      <div class="chips" data-g="opt">
+        <button class="chip" data-v="toilet">🚻 화장실</button>
+        <button class="chip" data-v="water">🚰 개수대</button>
+        <button class="chip" data-v="free">무료</button>
+        <button class="chip" data-v="good">👍 후기 좋음</button>
+        <button class="chip" data-v="done">✓ 가본 곳</button>
+        <button class="chip" data-v="todo">안 가본 곳</button>
+      </div>
+    </header>
+    <div id="count"></div>
+    <div class="note" id="indexNote"></div>
+    <div class="note" id="storeNote" hidden></div>
+    <div id="list"></div>
+  </aside>
+  <div id="map"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+<script>
+const SPOTS = [{"key": "k18354296", "name": "금진항", "lat": 34.49024761504074, "lon": 127.12388582678905, "address": "전남광주통합특별시 고흥군 금산면 신촌리", "region": "전남광주통합특별시 고흥군", "kakao": "http://place.map.kakao.com/18354296", "kind": "항구", "fishing": true, "chabak": true, "videos_n": 2, "species": ["감성돔", "숭어", "농어", "학꽁치", "장어", "갑오징어", "문어", "쭈꾸미", "우럭", "성대", "노래미", "고등어"], "fac": {"toilet": "yes"}, "toilets": [], "view": ["바다 앞", "조류가 좋음", "소록도 마주봄"], "tips": ["거금도에서 가장 유명한 항구로 소개됨", "찌낚시와 원투낚시, 에깅 루어낚시를 주로 한다", "방파제 대부분 발판이 평평하다", "금진항에서 출발하는 유람선으로 소록도·금당8경 관광 가능(약 2시간)", "8월 중순~10월 말 감성돔 시즌 좋음(댓글)"], "warnings": ["주차장에서 차박 시 주민 민원 주의(쓰레기 투기, 저녁 소음, 주차)", "댓글에 따르면 낚시가게 관련 불편 언급 있음"], "good": 7, "bad": 1, "reviews": [{"t": "금진이  나와바리인 사람으로써 영상에서 1번포인트 망둥어만 나오고 3번포인트 장담하건데 입질올 확률 10프로 미만 2번포인트는 원투가 주가되고 소록도 철탑방향보고 80m이상 캐스팅해야 입질좀보고\n2번포인트 찌낚못하게 라인처놨으며 끝에서 정면 또는 철탑보고 65미터 이상 캐스팅해야 입질좀보고 낚시방옆 기준은 바로앞 교각있는데  2번교각까지 100미터임 75~100미터 치면 박카스급 및 수조기 등 나름나옴  드론영상촬영은 최소 보름에서 한달이상 된듯보입니다\n참고로 말씀드리면 6물 이상되믄 40호 봉돌도 굴러다닙니다~~~", "v": "mixed", "l": 5}, {"t": "'나의 쓰레기 나의 집으로' 캠페인을 기본으로 하시는 바낚포님 진정한 멋쟁이 낚시인.\n쓰레기를 마꾸 버리는 몰지각한 낚시꾼들이 없는 그 날까지 쭉 ~~~", "v": "good", "l": 4}, {"t": "거금도 .. 내고향 포인트 8월 중순부터 10월 말까지 감시 낚시 잘 됩니다", "v": "good", "l": 3}, {"t": "저도 이곳 가봤어요. 낚시하기 편합니다.", "v": "good", "l": 2}], "videos": [{"id": "xdr7_twfuiY", "title": "도보 갯바위의 명소~! (오천항  낚시 전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}, {"id": "IVqamCjYRvw", "title": "거금도에서 가장 낚시하기 편안한 포인트~! (금진항  낚시 전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "", "index": null}, {"key": "k24813013", "name": "오천항", "lat": 34.43226039381899, "lon": 127.21224993822202, "address": "전남광주통합특별시 고흥군 금산면 오천리 산 102", "region": "전남광주통합특별시 고흥군", "kakao": "http://place.map.kakao.com/24813013", "kind": "항구", "fishing": true, "chabak": false, "videos_n": 2, "species": ["감성돔", "숭어", "농어", "망상어", "복어", "학꽁치", "쏨뱅이", "갑오징어", "문어", "쭈꾸미", "장어", "백조기"], "fac": {}, "toilets": [], "view": ["바다 앞", "갯바위", "방파제"], "tips": ["1번 작은방파제 갯바위가 가장 인기 있고 초봄 내만 감성돔 포인트로 알려져 있음", "주로 1번과 3번 갯바위에서 낚시가 이뤄짐", "내항은 수심이 낮고 물이 많아 외항 쪽 낚시가 유리함", "찌낚시와 원투낚시가 주류", "오천항 낚시점에서 출조 및 크릴 구매 가능(댓글 정보)", "갯바위 포인트로 유명하다고 소개됨"], "warnings": ["테트라포드 구역은 위험하므로 낚시 자제 권장", "쏨뱅이 등 독침 어종 및 쎄파리(모기류) 주의(댓글)", "원투 시 밑걸림 고려 필요(댓글)", "쓰레기는 되가져가기 권장(댓글)"], "good": 2, "bad": 0, "reviews": [{"t": "내항 작은방파제 장어잘나옵니다 \n5~6번  감시 백조기 농어 숭어 이것저것잘나옵니다 갑이도오구요  그쪽이 청석쪽으로가는 물길이라 괴기 잘나옵니다 원투는 밑걸림좀 생각하시고 던지셔야되구요  쎄파리조심하시구요", "v": "good", "l": 12}, {"t": "녹동 현지인인데 사람이 많다 했드만... 범인 여기 계셨네~ 게을러서 주말에 자리 잡기 힘듬...ㅜㅜ\n오시는건 좋은데... 오시는 분들 마트에 한 번은 들르시잖아요? 이왕이면 고흥 마트 들르셔서  장 보실 때 쓰레기봉투 함께 구매하셔서 쓰레기 담아서 버려주시길 부탁 드립니다.\n그리고 다 준비들 해 오시겠지만 오천항에는 낚시점(출조가능)이 있으니 급할 때 이용 해 주시면 감사하겠습니다.\n저는 1.2번에서 자주하지만...\n간단하게 포인트 설명 드리자면  \n(1번) 장타 및 중타 (그때그때 다름) 물가는게 빠르니 참고하시고, 여는 중간중", "v": "good", "l": 7}], "videos": [{"id": "xdr7_twfuiY", "title": "도보 갯바위의 명소~! (오천항  낚시 전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}, {"id": "IVqamCjYRvw", "title": "거금도에서 가장 낚시하기 편안한 포인트~! (금진항  낚시 전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "", "index": null}, {"key": "k1658362850", "name": "국립변산자연휴양림 숲속의집 신시도항", "lat": 35.5821189162478, "lon": 126.526469744117, "address": "전북특별자치도 부안군 변산면 도청리 산 1-147", "region": "전북 부안군", "kakao": "http://place.map.kakao.com/1658362850", "kind": "항구", "fishing": true, "chabak": true, "videos_n": 2, "species": ["우럭", "풀치", "삼치", "고등어", "전어", "학꽁치", "광어", "도다리"], "fac": {"shower": "no", "toilet": "yes"}, "toilets": [{"name": "모항경관졸음쉼터 화장실", "m": 194}], "view": ["새만금방조제", "방조제 남쪽 끝 포인트"], "tips": ["자세한 내용은 예전 신시도항 편 참고", "예전 신시도항 편 영상에서 자세한 설명 확인 가능"], "warnings": ["샤워 및 설거지 금지", "샤워·설거지 금지"], "good": 0, "bad": 0, "reviews": [], "videos": [{"id": "WxnQAKo_-hQ", "title": "해돌라인~신시도항 낚시포인트 총정리~! (새만금 방조제 낚시포인트 정리는 이영상으로 끝~!)", "channel": "바낚포TV(바다낚시포인트지도)"}, {"id": "FFNP2uPmUu4", "title": "33센터~가력도항 낚시포인트 총정리~! (새만금 방조제 낚시전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "신시도항", "index": null}, {"key": "k17434190", "name": "고흥만방조제", "lat": 34.65091715385947, "lon": 127.21309367315261, "address": "전남광주통합특별시 고흥군 도덕면 용동리 1454", "region": "전남광주통합특별시 고흥군", "kakao": "http://place.map.kakao.com/17434190", "kind": "방조제", "fishing": false, "chabak": true, "videos_n": 2, "species": [], "fac": {}, "toilets": [], "view": [], "tips": ["차박과 캠핑에 최적인 장소로 소개됨", "차박과 캠핑하기 최적의 장소로 소개됨"], "warnings": [], "good": 0, "bad": 0, "reviews": [], "videos": [{"id": "xdr7_twfuiY", "title": "도보 갯바위의 명소~! (오천항  낚시 전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}, {"id": "IVqamCjYRvw", "title": "거금도에서 가장 낚시하기 편안한 포인트~! (금진항  낚시 전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "", "index": null}, {"key": "k18354410", "name": "녹동항", "lat": 34.523057897324406, "lon": 127.14364798603607, "address": "전남광주통합특별시 고흥군 도양읍 봉암리 3907", "region": "전남광주통합특별시 고흥군", "kakao": "http://place.map.kakao.com/18354410", "kind": "항구", "fishing": false, "chabak": false, "videos_n": 2, "species": [], "fac": {"toilet": "near"}, "toilets": [{"name": "동두산체육공원 화장실", "m": 625}], "view": [], "tips": [], "warnings": [], "good": 0, "bad": 0, "reviews": [{"t": "자리다툼이 심하달 정도로 제일 낚시객이 많은 곳. 다음이 녹동항 다리밑.", "v": "mixed", "l": 1}], "videos": [{"id": "xdr7_twfuiY", "title": "도보 갯바위의 명소~! (오천항  낚시 전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}, {"id": "IVqamCjYRvw", "title": "거금도에서 가장 낚시하기 편안한 포인트~! (금진항  낚시 전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "", "index": null}, {"key": "k1586344978", "name": "명천항", "lat": 34.4683500008262, "lon": 127.230422356892, "address": "전남광주통합특별시 고흥군 금산면 신평리 44-18", "region": "전남광주통합특별시 고흥군", "kakao": "http://place.map.kakao.com/1586344978", "kind": "항구", "fishing": true, "chabak": false, "videos_n": 2, "species": [], "fac": {}, "toilets": [], "view": [], "tips": ["주차 후 바로 낚시 가능", "주차 후 바로 낚시 가능하다고 소개됨"], "warnings": [], "good": 0, "bad": 0, "reviews": [], "videos": [{"id": "xdr7_twfuiY", "title": "도보 갯바위의 명소~! (오천항  낚시 전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}, {"id": "IVqamCjYRvw", "title": "거금도에서 가장 낚시하기 편안한 포인트~! (금진항  낚시 전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "", "index": null}, {"key": "k26260120", "name": "사천진항", "lat": 37.8372562056956, "lon": 128.876988869022, "address": "강원특별자치도 강릉시 사천면 사천진리 2", "region": "강원 강릉시", "kakao": "http://place.map.kakao.com/26260120", "kind": "항구", "fishing": true, "chabak": false, "videos_n": 1, "species": ["숭어", "전어", "삼치", "학꽁치", "고등어", "전갱이", "도다리", "정어리", "강도다리", "황어", "장대", "돌돔"], "fac": {"toilet": "near"}, "toilets": [{"name": "공중화장실", "m": 74}, {"name": "양미리공중화장실", "m": 156}], "view": ["사천천과 바다가 만나는 기수지역", "아담한 항구"], "tips": ["봄 도다리, 여름 학꽁치·정어리·고등어·전갱이, 가을 삼치·감성돔 등 사계절 다양", "항구 입구 회집의 물회가 유명", "우럭 미역국도 유명"], "warnings": ["외항 테트라포드는 위험해 추천하지 않음", "외항 울타리가 높고 바로 낭떠러지라 접근 불가 (현지 댓글)", "내항에 낚시 금지 구역 표지가 있었다는 댓글 있음"], "good": 2, "bad": 2, "reviews": [{"t": "지난주 사천진항 큰방 외항에서 돌돔 잡았었습니다 시장급 고등어도 들어와있더라구요 ㅎㅎ", "v": "good", "l": 2}, {"t": "사천진 많이 갔었는데 바위섬에서 삼치 잡은기역나네요\n낚시 좋아하다보니 좋은정보 많이 보고 갑니다 바로 구독 합니다", "v": "good", "l": 2}, {"t": "사천진항 내항에 대문짝만하게 낚시 금지 구역이라고 써있던데.. 요즘은 안그러나요? 매번 차를 돌려야했던 아쉬운포인트였어요", "v": "bad", "l": 1}, {"t": "무엇보다 사천진 외항은 울타리가 위험해서 접근이 불가합니다. 울타리가 밖으로 높고 둥글고 바로 낭떠러지입니다.\r\n내항쪽은 전반적으로 물이 얕습니다. 내항에 망둥어들이 있습니다.민물방향 주차장쪽에서 욕심없이 고등어 낚시 하기에 적절합니다.\r\n비박은 좋으나 상주 어자원이 부실하고 외항은 위험하여 낚시터로는 비추천 합니다. 이상 현지주민.", "v": "bad", "l": 0}], "videos": [{"id": "g6SowBbvaho", "title": "사계절 심심할만하면 고기들이 떼지어 다녀가는 곳~!", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "", "index": null}, {"key": "k26300175", "name": "해넘이쉼터", "lat": 35.8917576991415, "lon": 126.516245279508, "address": "전북특별자치도 군산시 비응도동", "region": "전북 군산시", "kakao": "http://place.map.kakao.com/26300175", "kind": "방파제", "fishing": true, "chabak": true, "videos_n": 1, "species": ["우럭", "풀치", "삼치", "고등어", "광어", "도다리"], "fac": {"shower": "no", "toilet": "yes"}, "toilets": [{"name": "해넘이쉼터 화장실", "m": 7}], "view": ["새만금방조제", "일몰"], "tips": ["군산 방향에서 가장 가까운 쉼터로 비응항 초입 낚시점·편의점·식당이 몰려 있어 접근성이 좋음", "주간에는 삼치·고등어, 해질녘~야간·동틀녘에는 풀치 낚시가 주를 이룸", "11~12월에는 30cm 내외 씨알의 우럭이 올라옴", "화장실은 관리되어 간단한 세면 가능, 샤워·설거지는 금지", "석축에 물이끼가 껴 미끄러우니 아이젠 착용 권장"], "warnings": ["샤워 및 설거지 금지", "배수갑문 근처 및 비응항 외항 테트라포드 구역은 낚시 금지"], "good": 1, "bad": 0, "reviews": [{"t": "최근 저녁에 돌고래갔는데 화장실은 잠궈놨더라구요ㅜㅜ\n해넘이가 그나마 가장 좋았어요~!", "v": "good", "l": 3}], "videos": [{"id": "WxnQAKo_-hQ", "title": "해돌라인~신시도항 낚시포인트 총정리~! (새만금 방조제 낚시포인트 정리는 이영상으로 끝~!)", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "해넘이 쉼터", "index": null}, {"key": "k18937447", "name": "가력도항", "lat": 35.727591106184924, "lon": 126.53060620133895, "address": "전북특별자치도 부안군 변산면 대항리 583", "region": "전북 부안군", "kakao": "http://place.map.kakao.com/18937447", "kind": "항구", "fishing": true, "chabak": true, "videos_n": 1, "species": ["망둥어", "우럭"], "fac": {"toilet": "yes", "shower": "no"}, "toilets": [], "view": ["부안 방향 방조제 끝"], "tips": ["배수갑문 근처라 내항 낚시만 가능", "안전하고 편안한 낚시 가능"], "warnings": ["외항은 낚시금지구역, 내항만 가능", "가력배수갑문 근처 낚시금지구역", "샤워·설거지 금지"], "good": 1, "bad": 0, "reviews": [{"t": "와 ㅡ\n여기 가력도에서 \n내가 10년전에\n낚시 한적이 \n망둥어가 크고 우럭도 중간싸이즈로 재미좀 본 곳인데", "v": "good", "l": 2}], "videos": [{"id": "FFNP2uPmUu4", "title": "33센터~가력도항 낚시포인트 총정리~! (새만금 방조제 낚시전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "", "index": null}, {"key": "k26300173", "name": "돌고래쉼터", "lat": 35.8685243656204, "lon": 126.506660480011, "address": "전북특별자치도 군산시 옥도면 야미도리", "region": "전북 군산시", "kakao": "http://place.map.kakao.com/26300173", "kind": "방파제", "fishing": true, "chabak": true, "videos_n": 1, "species": ["우럭", "풀치", "삼치", "고등어", "광어", "도다리"], "fac": {"shower": "no", "toilet": "yes"}, "toilets": [{"name": "돌고래쉼터 화장실", "m": 2}], "view": ["새만금방조제", "일몰"], "tips": ["해넘이 쉼터와 묶어 '해돌라인'으로 부르며 비응항과 가까워 접근성이 좋음", "석축에 물이끼가 껴 미끄러우니 아이젠 착용 필수"], "warnings": ["화장실이 잠겨 있는 경우가 있음(댓글 제보)", "샤워 및 설거지 금지"], "good": 0, "bad": 1, "reviews": [{"t": "최근 저녁에 돌고래갔는데 화장실은 잠궈놨더라구요ㅜㅜ\n해넘이가 그나마 가장 좋았어요~!", "v": "bad", "l": 3}, {"t": "시원한 영상과 깔끔한 포인트 설명 베리굿입니다.\n한가지 첨언드리면 해돌라인 석축은 물이끼가 껴있어 매우 미끄러워 신발에 아이젠착용을 안하면 낙상사고를 당하기 쉽습니다.\n낚시하실때 아이젠착용은 필수입니다. 채비와 장비도 최소화하면 포인트 이동이 잦은편이니 이동시 덜 힘들고 편안한 낚시를 즐길수 있습니다.", "v": "mixed", "l": 3}], "videos": [{"id": "WxnQAKo_-hQ", "title": "해돌라인~신시도항 낚시포인트 총정리~! (새만금 방조제 낚시포인트 정리는 이영상으로 끝~!)", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "", "index": null}, {"key": "k26621789", "name": "야미도선착장", "lat": 35.840840425654356, "lon": 126.48909451736681, "address": "전북특별자치도 군산시 옥도면 야미도4길 36", "region": "전북 군산시", "kakao": "http://place.map.kakao.com/26621789", "kind": "선착장", "fishing": true, "chabak": true, "videos_n": 1, "species": [], "fac": {"shower": "no", "toilet": "yes"}, "toilets": [], "view": ["새만금방조제"], "tips": ["자세한 내용은 예전 야미도선착장 편 참고"], "warnings": ["샤워 및 설거지 금지"], "good": 0, "bad": 0, "reviews": [], "videos": [{"id": "WxnQAKo_-hQ", "title": "해돌라인~신시도항 낚시포인트 총정리~! (새만금 방조제 낚시포인트 정리는 이영상으로 끝~!)", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "", "index": null}, {"key": "k26103369", "name": "바람쉼터", "lat": 35.7968007597658, "lon": 126.491408797063, "address": "전북특별자치도 김제시 진봉면 새만금로 1290", "region": "전북 김제시", "kakao": "http://place.map.kakao.com/26103369", "kind": "기타", "fishing": false, "chabak": true, "videos_n": 1, "species": [], "fac": {"toilet": "yes", "shower": "no"}, "toilets": [{"name": "바람쉼터 화장실", "m": 90}], "view": ["방조제 바다 앞"], "tips": [], "warnings": ["썰물 때 물이 들어오는 것 주의, 밤낚시 사고 사례 있음"], "good": 0, "bad": 1, "reviews": [{"t": "5년전 제 친구가 바람쉼터쪽에서 밤낚시하다가 운명했죠.. 물들어오는거 진짜조심해야합니다 인공방파제인만큼 저기가 원래는 바다 한 가운데라는걸잊지마시고 썰물땐 그냥 나오세요..", "v": "bad", "l": 5}], "videos": [{"id": "FFNP2uPmUu4", "title": "33센터~가력도항 낚시포인트 총정리~! (새만금 방조제 낚시전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "바람의쉼터", "index": null}, {"key": "k26133364", "name": "소라쉼터", "lat": 35.7808677309931, "lon": 126.49854906595, "address": "전북특별자치도 김제시 진봉면 새만금로 1110", "region": "전북 김제시", "kakao": "http://place.map.kakao.com/26133364", "kind": "기타", "fishing": false, "chabak": true, "videos_n": 1, "species": [], "fac": {"toilet": "yes", "shower": "no"}, "toilets": [{"name": "소라쉼터 화장실", "m": 25}], "view": [], "tips": [], "warnings": ["샤워·설거지 금지"], "good": 0, "bad": 0, "reviews": [], "videos": [{"id": "FFNP2uPmUu4", "title": "33센터~가력도항 낚시포인트 총정리~! (새만금 방조제 낚시전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "", "index": null}, {"key": "k26172764", "name": "너울쉼터", "lat": 35.761984982841, "lon": 126.50736777225, "address": "전북특별자치도 김제시 진봉면 심포리 2434", "region": "전북 김제시", "kakao": "http://place.map.kakao.com/26172764", "kind": "기타", "fishing": false, "chabak": true, "videos_n": 1, "species": [], "fac": {"toilet": "yes", "shower": "no"}, "toilets": [{"name": "너울쉼터 화장실", "m": 65}], "view": [], "tips": [], "warnings": ["샤워·설거지 금지"], "good": 0, "bad": 0, "reviews": [], "videos": [{"id": "FFNP2uPmUu4", "title": "33센터~가력도항 낚시포인트 총정리~! (새만금 방조제 낚시전 시청 필수!!!)", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "", "index": null}, {"key": "k7992608", "name": "강릉항", "lat": 37.77281071444708, "lon": 128.95304152743176, "address": "강원특별자치도 강릉시 견소동 286-10", "region": "강원 강릉시", "kakao": "http://place.map.kakao.com/7992608", "kind": "항구", "fishing": true, "chabak": false, "videos_n": 1, "species": ["전어", "숭어", "삼치", "정어리", "고등어", "전갱이", "강도다리", "우럭", "망상어", "학꽁치", "감성돔", "광어"], "fac": {"toilet": "near"}, "toilets": [{"name": "파도와거북 화장실", "m": 626}, {"name": "안목화장실앞 공영주차장", "m": 675}], "view": ["안목해수욕장 인접", "카페거리 인근"], "tips": ["발판이 편하고 안전해 가을철 인기가 좋다", "강릉공항 인접으로 드론촬영 불가"], "warnings": ["강릉공항 인접으로 드론촬영 불가"], "good": 0, "bad": 0, "reviews": [], "videos": [{"id": "g6SowBbvaho", "title": "사계절 심심할만하면 고기들이 떼지어 다녀가는 곳~!", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "강릉항 내항", "index": null}, {"key": "k8073113", "name": "주문진항", "lat": 37.8878396585196, "lon": 128.830783241993, "address": "강원특별자치도 강릉시 주문진읍 교항리", "region": "강원 강릉시", "kakao": "http://place.map.kakao.com/8073113", "kind": "항구", "fishing": true, "chabak": false, "videos_n": 1, "species": [], "fac": {"toilet": "near"}, "toilets": [{"name": "공영화장실", "m": 528}], "view": [], "tips": ["고기떼 조황 소식이 들리면 외항 쪽에 낚시 인파가 몰림"], "warnings": [], "good": 0, "bad": 0, "reviews": [], "videos": [{"id": "g6SowBbvaho", "title": "사계절 심심할만하면 고기들이 떼지어 다녀가는 곳~!", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "", "index": null}, {"key": "k10561564", "name": "소돌항", "lat": 37.9049479503698, "lon": 128.830802425681, "address": "강원특별자치도 강릉시 주문진읍 주문리 791-23", "region": "강원 강릉시", "kakao": "http://place.map.kakao.com/10561564", "kind": "갯바위", "fishing": true, "chabak": false, "videos_n": 1, "species": [], "fac": {"toilet": "near"}, "toilets": [{"name": "소돌여름해변공중화장실", "m": 681}], "view": ["아들바위 갯바위"], "tips": ["테트라포드보다 갯바위 정취를 원하면 좋음"], "warnings": [], "good": 0, "bad": 0, "reviews": [], "videos": [{"id": "g6SowBbvaho", "title": "사계절 심심할만하면 고기들이 떼지어 다녀가는 곳~!", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "", "index": null}, {"key": "k8226156", "name": "남애항", "lat": 37.944487913925, "lon": 128.787405857015, "address": "강원특별자치도 양양군 현남면 남애리 2-8", "region": "강원 양양군", "kakao": "http://place.map.kakao.com/8226156", "kind": "방파제", "fishing": true, "chabak": false, "videos_n": 1, "species": ["도루묵", "임연수", "감성돔", "무늬오징어", "삼치", "고등어"], "fac": {"toilet": "near"}, "toilets": [{"name": "개방화장실", "m": 428}], "view": [], "tips": ["한겨울 도루묵, 초봄 임연수, 이후 감성돔·무늬오징어·삼치·고등어 등 계절별 어종"], "warnings": [], "good": 0, "bad": 0, "reviews": [], "videos": [{"id": "g6SowBbvaho", "title": "사계절 심심할만하면 고기들이 떼지어 다녀가는 곳~!", "channel": "바낚포TV(바다낚시포인트지도)"}], "aliases": "", "index": null}];
+const META = {"built_at": "2026-11-23 23:54", "index_at": null};
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const $ = id => document.getElementById(id);
+
+// ---------- 가봤어요·메모 (claude.ai 공유 페이지에서는 계정에, 그 외엔 이 브라우저에 저장) ----------
+const MINE = {}; let store = null; const LS_KEY = "sea-spots-mine-v1";
+function setNote(t) { const n = $("storeNote"); n.textContent = t; n.hidden = !t; }
+async function initStore() {
+  let db = null, uid = null;
+  try { if (window.claude && claude.use) { const [d, u] = await Promise.all([claude.use("db"), claude.use("user")]); db = d; uid = u ? await u.id() : null; } } catch (e) {}
+  if (db && uid) {
+    const col = db.collection("data/users/" + uid);
+    const t = setTimeout(() => setNote("저장된 기록을 아직 불러오지 못했어요."), 10000);
+    col.onSnapshot(snap => {
+      if (!snap.metadata.fromCache) { clearTimeout(t); setNote(""); }
+      snap.docs.forEach(d => { if (d.exists) MINE[d.id] = {...d.data()}; });
+      snap.docChanges().forEach(c => { if (c.type === "removed") delete MINE[c.doc.id]; });
+      refreshMine();
+    }, () => { clearTimeout(t); setNote("기록 동기화가 끊겼어요. 새로고침해 주세요."); });
+    const busy = {};
+    return { async save(k, rec) { while (busy[k]) await busy[k]; busy[k] = col.doc(k).set(rec).finally(() => { busy[k] = null; }); return busy[k]; } };
+  }
+  try { Object.assign(MINE, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch (e) {}
+  setNote("가봤어요·메모는 이 브라우저에만 저장돼요.");
+  return { async save() { localStorage.setItem(LS_KEY, JSON.stringify(MINE)); } };
+}
+const mineOf = s => MINE[s.key] || {};
+async function saveMine(s, patch, st) {
+  MINE[s.key] = {visited: false, memo: "", ...mineOf(s), ...patch, at: Date.now()};
+  refreshMine();
+  if (!store) return;
+  st && (st.textContent = "저장 중…");
+  try { await store.save(s.key, MINE[s.key]); st && (st.textContent = "저장됨"); }
+  catch (e) { st && (st.textContent = "저장하지 못했어요. 다시 시도해 주세요."); }
+}
+
+// ---------- 지도 ----------
+const map = L.map("map").setView([36.0, 127.6], 7);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
+const cluster = L.markerClusterGroup({showCoverageOnHover: false, maxClusterRadius: 45,
+  iconCreateFunction: c => L.divIcon({html: `<div>${c.getChildCount()}</div>`, className: "marker-cluster", iconSize: [38, 38]})});
+map.addLayer(cluster);
+
+const cls = s => s.fishing && s.chabak ? "both" : s.fishing ? "fish" : "camp";
+const pinIcon = s => L.divIcon({className: "", iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30],
+  html: `<div class="pin ${cls(s)}${mineOf(s).visited ? " done" : ""}"><b>${s.fishing && s.chabak ? "★" : s.fishing ? "🎣" : "🚐"}</b></div>`});
+const hasToilet = s => ["yes", "near"].includes(s.fac.toilet);
+
+// 오늘 이후 첫 예보에서 가장 좋은 지수를 대표값으로
+const LV = {"매우좋음": 5, "좋음": 4, "보통": 3, "나쁨": 2, "매우나쁨": 1};
+function todayIndex(s) {
+  if (!s.index || !s.index.rows.length) return null;
+  const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10).replace(/-/g, "");
+  const rows = s.index.rows.filter(r => String(r.date || "").replace(/-/g, "") >= today);
+  const first = rows.length ? String(rows[0].date) : null;
+  const same = rows.filter(r => String(r.date) === first);
+  return same.sort((a, b) => (LV[b.index] || 0) - (LV[a.index] || 0))[0] || null;
+}
+const lvCls = v => (LV[v] || 3) >= 4 ? "g" : (LV[v] || 3) <= 2 ? "b" : "";
+
+function popup(s) {
+  const f = s.fac, el = document.createElement("div"); el.className = "pop";
+  const facs = [["toilet", "화장실"], ["flush_toilet", "수세식"], ["water", "개수대"], ["shower", "샤워"],
+    ["free_parking", "무료주차"], ["free", "무료"], ["cooking_ok", "취사 가능"]]
+    .filter(([k]) => f[k]).map(([k, n]) => `<span class="${f[k] === "no" ? "n" : "y"}">${f[k] === "near" ? "근처 " : ""}${n}</span>`).join("");
+  const idx = s.index ? `<div class="sec"><b>바다낚시지수 · ${esc(s.index.name)}(${esc(s.index.type)}, ${s.index.km}km)</b>
+    <table class="idx"><tr><th>날짜</th><th></th><th>어종</th><th>지수</th><th>물때</th></tr>${
+      s.index.rows.slice(0, 10).map(r => `<tr><td>${esc(String(r.date || "").slice(4))}</td><td>${esc(r.noon || "")}</td><td>${esc(r.fish || "")}</td><td class="lv ${lvCls(r.index)}">${esc(r.index || "")}</td><td>${esc(r.tide || "")}</td></tr>`).join("")
+    }</table></div>` : "";
+  const vids = s.videos.map((v, i) => `<a href="https://youtu.be/${esc(v.id)}" target="_blank" rel="noopener" title="${esc(v.title)}">영상${s.videos.length > 1 ? " " + (i + 1) : ""}</a>`).join("");
+  el.innerHTML = `<h3>${esc(s.name)}</h3>
+    <div>${s.fishing ? '<span class="tag tf">낚시</span>' : ""}${s.chabak ? '<span class="tag tc">차박</span>' : ""}<span class="meta">${esc(s.kind)} · ${esc(s.region)} · 영상 ${s.videos_n}개</span></div>
+    ${s.species.length ? `<div class="sec"><b>어종</b>${esc(s.species.join(", "))}</div>` : ""}
+    ${facs ? `<div class="sec fac"><b>편의시설</b>${facs}</div>` : ""}
+    ${s.toilets.length ? `<div class="sec"><b>근처 공중화장실</b>${s.toilets.map(t => `${esc(t.name)} ${t.m}m`).join(" · ")}</div>` : ""}
+    ${s.view.length ? `<div class="sec"><b>뷰</b>${esc(s.view.join(", "))}</div>` : ""}
+    ${s.warnings.length ? `<div class="sec warn"><b>주의</b>${s.warnings.map(esc).join("<br>")}</div>` : ""}
+    ${s.tips.length ? `<div class="sec"><b>팁</b>${s.tips.map(t => "· " + esc(t)).join("<br>")}</div>` : ""}
+    ${s.reviews.length ? `<div class="sec"><b>시청자 후기 (좋음 ${s.good} · 별로 ${s.bad})</b>${s.reviews.map(r => `<div class="rev">${r.v === "good" ? "👍" : r.v === "bad" ? "👎" : "🤔"} ${esc(r.t)}</div>`).join("")}</div>` : ""}
+    ${idx}
+    <div class="sec" style="color:var(--muted)">${esc(s.address)}</div>
+    <div class="links">${s.kakao ? `<a href="${esc(s.kakao)}" target="_blank" rel="noopener">카카오맵</a>` : ""}${vids}</div>
+    <div class="mine"><button class="visit" type="button"></button>
+      <textarea placeholder="메모·후기 (예: 우럭 5마리, 화장실 깨끗함, 주말엔 자리 없음)" maxlength="1000"></textarea><div class="saved"></div></div>`;
+  const btn = el.querySelector(".visit"), ta = el.querySelector("textarea"), st = el.querySelector(".saved");
+  const paint = () => { const on = !!mineOf(s).visited; btn.classList.toggle("on", on); btn.textContent = on ? "✓ 가봤어요" : "가봤어요 체크"; };
+  paint(); ta.value = mineOf(s).memo || "";
+  btn.onclick = () => { saveMine(s, {visited: !mineOf(s).visited, memo: ta.value}, st); paint(); };
+  let timer; const flush = () => { clearTimeout(timer); if (ta.value !== (mineOf(s).memo || "")) saveMine(s, {memo: ta.value}, st); };
+  ta.oninput = () => { st.textContent = ""; clearTimeout(timer); timer = setTimeout(flush, 1200); };
+  ta.onblur = flush;
+  return el;
+}
+
+SPOTS.forEach((s, i) => {
+  s.id = i; s.today = todayIndex(s);
+  s.marker = L.marker([s.lat, s.lon], {icon: pinIcon(s), title: s.name}).bindPopup(() => popup(s), {maxWidth: 320});
+  s.hay = [s.name, s.region, s.kind, s.aliases, ...s.species, ...s.view].join(" ").toLowerCase();
+});
+[...new Set(SPOTS.map(s => s.region.split(" ")[0]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko"))
+  .forEach(r => $("region").insertAdjacentHTML("beforeend", `<option>${esc(r)}</option>`));
+$("indexNote").textContent = META.index_at ? `바다낚시지수 ${META.index_at} 기준 · 출처 국립해양조사원` : "";
+
+const state = {layer: "all", opt: new Set()};
+document.querySelectorAll(".chips").forEach(g => g.addEventListener("click", e => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  if (g.dataset.g === "layer") { state.layer = c.dataset.v; g.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === c)); }
+  else {
+    const v = c.dataset.v;
+    if (state.opt.has(v)) state.opt.delete(v); else { state.opt.add(v); if (v === "done") state.opt.delete("todo"); if (v === "todo") state.opt.delete("done"); }
+    g.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", state.opt.has(x.dataset.v)));
+  }
+  render(true);
+}));
+
+function visible() {
+  const q = $("q").value.trim().toLowerCase(), reg = $("region").value, o = state.opt;
+  return SPOTS.filter(s =>
+    (state.layer === "all" || (state.layer === "fish" ? s.fishing : s.chabak)) &&
+    (!reg || s.region.startsWith(reg)) &&
+    (!q || s.hay.includes(q) || (mineOf(s).memo || "").toLowerCase().includes(q)) &&
+    (!o.has("toilet") || hasToilet(s)) && (!o.has("water") || s.fac.water === "yes") &&
+    (!o.has("free") || s.fac.free === "yes") && (!o.has("good") || s.good > s.bad) &&
+    (!o.has("done") || mineOf(s).visited) && (!o.has("todo") || !mineOf(s).visited));
+}
+function render(redraw) {
+  const shown = visible();
+  if (redraw) { cluster.clearLayers(); cluster.addLayers(shown.map(s => s.marker)); }
+  const done = SPOTS.filter(s => mineOf(s).visited).length;
+  $("count").textContent = `${shown.length.toLocaleString()}곳` + (done ? ` · 가본 곳 ${done}곳` : "");
+  $("list").innerHTML = shown.slice(0, 300).map(s => `<div class="item" data-id="${s.id}">
+    <div class="name">${esc(s.name)} ${mineOf(s).visited ? '<span class="tag td">✓ 가봤어요</span>' : ""}</div>
+    <div class="meta">${s.fishing ? '<span class="tag tf">낚시</span>' : ""}${s.chabak ? '<span class="tag tc">차박</span>' : ""}${esc(s.region)} · ${esc(s.kind)} · 영상 ${s.videos_n}</div>
+    <div class="icons">${hasToilet(s) ? "🚻 " : ""}${s.fac.water === "yes" ? "🚰 " : ""}${s.fac.free === "yes" ? "무료 " : ""}${s.good ? `👍${s.good} ` : ""}${s.bad ? `👎${s.bad} ` : ""}${s.today ? `<span class="lv ${lvCls(s.today.index)}">지수 ${esc(s.today.index)}</span> ` : ""}${s.species.slice(0, 4).map(esc).join(", ")}</div>
+    ${mineOf(s).memo ? `<div class="memo-line">📝 ${esc(mineOf(s).memo)}</div>` : ""}</div>`).join("")
+    || `<p style="padding:18px;color:var(--muted)">조건에 맞는 장소가 없어요.</p>`;
+  if (redraw && shown.length && shown.length < SPOTS.length) {
+    const sheet = innerWidth <= 760 ? $("side").offsetHeight : 0;
+    map.fitBounds(L.latLngBounds(shown.map(s => [s.lat, s.lon])), {maxZoom: 14, paddingTopLeft: [40, 60], paddingBottomRight: [30, 30 + sheet]});
+  }
+}
+const iconState = {};
+function refreshMine() {
+  SPOTS.forEach(s => { const v = !!mineOf(s).visited; if (iconState[s.key] !== v) { iconState[s.key] = v; s.marker.setIcon(pinIcon(s)); } });
+  render(false);
+}
+$("list").addEventListener("click", e => {
+  const el = e.target.closest(".item"); if (!el) return;
+  const s = SPOTS[+el.dataset.id];
+  document.querySelectorAll(".item.on").forEach(x => x.classList.remove("on")); el.classList.add("on");
+  cluster.zoomToShowLayer(s.marker, () => s.marker.openPopup());
+  if (innerWidth <= 760) $("side").classList.add("min");
+});
+$("q").addEventListener("input", () => render(true));
+$("region").addEventListener("change", () => render(true));
+$("toggle").addEventListener("click", () => $("side").classList.toggle("min"));
+render(true);
+initStore().then(s => { store = s; refreshMine(); });
+</script>
+</body>
+</html>
