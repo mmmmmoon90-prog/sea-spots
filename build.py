@@ -75,6 +75,43 @@ def region_tokens(region):
     return [t for t in toks if t]
 
 
+REGION_FIX = [(r"^전남광주통합특별시", "전남"), (r"^(강원|전북|제주)특별자치도", r"\1"),
+              (r"^(서울|부산|대구|인천|광주|대전|울산)(특별시|광역시)", r"\1"), (r"^세종특별자치시", "세종"),
+              (r"^경상남도", "경남"), (r"^경상북도", "경북"), (r"^전라남도", "전남"), (r"^전라북도", "전북"),
+              (r"^충청남도", "충남"), (r"^충청북도", "충북"), (r"^경기도", "경기")]
+
+
+def norm_region(addr):
+    r = " ".join((addr or "").split()[:2])
+    for pat, rep in REGION_FIX:
+        r = re.sub(pat, rep, r)
+    return r
+
+
+PLACE_END = r"(항|포구|방파제|방조제|해수욕장|해변|선착장|등대|쉼터|저수지|갯바위|해안|공원|캠핑장|오토캠핑장|휴게소|센터)"
+
+
+def base_names(name):
+    """'사천진항 1번 작은방파제' → ['사천진항'], '33센터 (새만금방조제 F포인트)' → ['33센터', '새만금방조제'] 처럼
+    세부 포인트 이름에서 지도에서 찾을 수 있는 상위 장소 이름 후보를 뽑음."""
+    out = []
+    inner = re.findall(r"\(([^)]*)\)", name)
+    main = re.sub(r"\([^)]*\)", " ", name).split()
+    for k in range(len(main) - 1, 0, -1):
+        out.append(" ".join(main[:k]))
+    for part in [" ".join(main)] + inner:
+        m = re.match(r"^(.+?" + PLACE_END + r")", part.replace(" ", ""))
+        if m:
+            out.append(m.group(1))
+    seen, res = {name}, []
+    for c in out:
+        c = c.strip()
+        if len(c) >= 2 and c not in seen and not re.search(r"(포인트|구간|구역|근처|번)$", c):
+            seen.add(c)
+            res.append(c)
+    return res[:4]
+
+
 def geocode(name, region, cache):
     key = f"{region}|{name}"
     if key in cache:
@@ -87,8 +124,10 @@ def geocode(name, region, cache):
             addr = (d.get("address_name") or "") + " " + (d.get("road_address_name") or "")
             if toks and not any(t in addr for t in toks[-1:] + toks[:1]):
                 continue  # 지역이 전혀 안 맞으면 버림 (동명이인 장소 방지)
-            score = max(fuzz.ratio(simplify(name), simplify(d["place_name"])),
-                        fuzz.partial_ratio(simplify(name), simplify(d["place_name"])) - 5)
+            a, b = simplify(name), simplify(d["place_name"])
+            score = fuzz.ratio(a, b)
+            if len(b) <= len(a) * 1.6 + 2:  # '신시도항' ↔ '…숲속의집 신시도항'처럼 엉뚱한 긴 이름은 부분일치 인정 안 함
+                score = max(score, fuzz.partial_ratio(a, b) - 5)
             if best is None or score > best[0]:
                 best = (score, d)
         if best and best[0] >= 75:
@@ -97,8 +136,7 @@ def geocode(name, region, cache):
     cache[key] = None if doc is None else {
         "place_name": doc["place_name"], "lat": float(doc["y"]), "lon": float(doc["x"]),
         "address": doc.get("road_address_name") or doc.get("address_name", ""),
-        "addr_region": re.sub(r"^(강원|전북|제주)특별자치도", r"\1", re.sub(r"특별자치시$", "",
-                              " ".join((doc.get("address_name") or "").split()[:2]))),
+        "addr_region": norm_region(doc.get("address_name")),
         "category": (doc.get("category_name") or "").split(" > ")[-1],
         "url": doc.get("place_url", ""),
     }
@@ -120,6 +158,9 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(SITE, exist_ok=True)
     geo, tcache = load_json(GEO_CACHE, {}), load_json(TOILET_CACHE, {})
+    for k in [k for k, v in geo.items()  # 예전 규칙으로 엉뚱하게 붙은 긴 이름 결과는 다시 찾기
+              if v and len(simplify(v["place_name"])) > len(simplify(k.split("|", 1)[-1])) * 1.6 + 2]:
+        del geo[k]
 
     mentions = []
     for path in glob.glob(os.path.join(DATA, "extracted", "*.json")):
@@ -131,7 +172,14 @@ def main():
 
     places, missing = {}, []
     for i, (video, s) in enumerate(mentions, 1):
-        g = geocode(s["name"].strip(), (s.get("region") or "").strip(), geo)
+        name, region = s["name"].strip(), (s.get("region") or "").strip()
+        g, point = geocode(name, region, geo), None
+        if not g:  # 세부 포인트면 상위 장소(항구·방조제 등)에 붙임
+            for b in base_names(name):
+                g = geocode(b, region, geo)
+                if g:
+                    point = name
+                    break
         if i % 200 == 0:
             save_json(GEO_CACHE, geo)
             print(f"  위치 확인 {i}/{len(mentions)}", flush=True)
@@ -144,8 +192,13 @@ def main():
             "key": key, "name": g["place_name"], "lat": g["lat"], "lon": g["lon"], "address": g["address"],
             "region": g["addr_region"], "kakao": g["url"], "kinds": Counter(), "fishing": 0, "chabak": 0,
             "species": Counter(), "fac": defaultdict(lambda: [0, 0]), "view": Counter(), "tips": [],
-            "warnings": [], "reviews": [], "videos": {}, "aliases": set()})
-        p["aliases"].add(s["name"].strip())
+            "warnings": [], "reviews": [], "videos": {}, "aliases": set(), "points": []})
+        p["region"] = norm_region(g["addr_region"])
+        if point:
+            if point not in p["points"]:
+                p["points"].append(point)
+        else:
+            p["aliases"].add(name)
         p["videos"][video["video_id"]] = {"title": video["title"], "channel": video["channel"]}
         if s.get("kind"):
             p["kinds"][s["kind"]] += 1
@@ -196,6 +249,7 @@ def main():
             "reviews": [{"t": r["text"], "v": r.get("verdict"), "l": r.get("likes", 0)} for r in revs[:4]],
             "videos": [{"id": k, **v} for k, v in list(p["videos"].items())[:5]],
             "aliases": ", ".join(sorted(a for a in p["aliases"] if a != p["name"]))[:100],
+            "points": p["points"][:12],
             "index": near,
         })
     save_json(TOILET_CACHE, tcache)
@@ -221,13 +275,13 @@ def write_excel(spots, missing):
     wb = Workbook()
     ws = wb.active
     ws.title = "장소"
-    head = ["지역", "장소", "종류", "낚시", "차박", "다룬 영상 수", "어종", "화장실", "수세식", "개수대",
+    head = ["지역", "장소", "종류", "낚시", "차박", "다룬 영상 수", "세부 포인트", "어종", "화장실", "수세식", "개수대",
             "무료", "취사", "근처 화장실", "뷰", "팁", "주의", "좋았다 후기", "별로 후기", "주소", "카카오맵"]
     ws.append(head)
     for s in sorted(spots, key=lambda s: (s["region"], -s["videos_n"])):
         f = s["fac"]
         ws.append([s["region"], s["name"], s["kind"], "O" if s["fishing"] else "", "O" if s["chabak"] else "",
-                   s["videos_n"], ", ".join(s["species"]), yn[f.get("toilet")], yn[f.get("flush_toilet")],
+                   s["videos_n"], " / ".join(s["points"]), ", ".join(s["species"]), yn[f.get("toilet")], yn[f.get("flush_toilet")],
                    yn[f.get("water")], yn[f.get("free")], yn[f.get("cooking_ok")],
                    ", ".join(f'{t["name"]}({t["m"]}m)' for t in s["toilets"]), ", ".join(s["view"]),
                    " / ".join(s["tips"]), " / ".join(s["warnings"]), s["good"], s["bad"], s["address"], s["kakao"]])
