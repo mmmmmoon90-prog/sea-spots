@@ -1,0 +1,16 @@
+{
+  "_설명": "수집할 채널 목록. category: fishing(낚시 포인트) / chabak(차박지). keywords: 제목에 하나라도 있으면 수집(빈 배열이면 전부). 채널을 더 넣고 싶으면 같은 형식으로 추가하세요.",
+  "channels": [
+    {"name": "바낚포TV(바다낚시포인트지도)", "id": "UCvQOH65JgI2KFpgznM3hoEg", "category": "fishing", "keywords": []},
+    {"name": "바다닥TV", "id": "UCbIPB_2BB_MDAhCf72h6Zpw", "category": "fishing", "keywords": ["포인트", "방파제", "항", "갯바위", "선착장", "낚시"]},
+    {"name": "캠낚여지도", "id": "UCdmGPXXfVTicCIsLNy0mkpw", "category": "fishing", "keywords": []},
+    {"name": "리얼깽TV", "id": "UCdkCZUpTKqkjm1lXHeP8hnw", "category": "fishing", "keywords": ["방파제", "항", "포인트", "갯바위", "구멍치기"]},
+    {"name": "라라의 집시 라이프", "id": "UCYhJcg4BcEXd3hckQ1yQzbQ", "category": "chabak", "keywords": ["차박", "노지", "캠핑", "화장실", "야영"]},
+    {"name": "호캠프", "id": "UCwWkEaOu7AYUQZawCecLkeQ", "category": "chabak", "keywords": ["노지", "차박", "야영장", "캠핑장", "화장실"]},
+    {"name": "싼차박", "id": "UCabpgnft_vh9mRLcgryhnUA", "category": "chabak", "keywords": []},
+    {"name": "밀알패밀리", "id": "UCZh-x6LBnGjatsa7ksBYPIw", "category": "chabak", "keywords": ["차박", "노지", "캠핑"]},
+    {"name": "노을캠핑TV", "id": "UC-vMGK0MVhSnc0pdoNkIbfw", "category": "chabak", "keywords": ["차박", "노지", "캠핑"]},
+    {"name": "짜루캠핑", "id": "UC7LnA1DG1k6rEb_GQXrpOoQ", "category": "chabak", "keywords": ["노지", "차박"]},
+    {"name": "산들이라이프", "id": "UCH3MgToqcbOrtQQXaU9dOfQ", "category": "chabak", "keywords": ["노지", "차박", "캠핑"]}
+  ]
+}

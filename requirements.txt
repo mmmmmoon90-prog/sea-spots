@@ -1,0 +1,4 @@
+requests>=2.31
+anthropic>=0.40
+rapidfuzz>=3.0
+openpyxl>=3.1
