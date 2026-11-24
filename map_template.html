@@ -516,9 +516,11 @@ const REGS = [
   {g: "어류", k: "돌돔", al: ["돌돔", "뺀찌", "돌돔(뺀찌)", "줄돔"], size: "24cm 이하"},
   {g: "어류", k: "광어(넙치)", al: ["광어"], size: "35cm 이하"},
   {g: "어류", k: "농어", al: ["농어", "농어 새끼", "깔따구"], size: "30cm 이하"},
-  {g: "어류", k: "도다리(문치가자미)", al: ["도다리", "가자미", "가자미(도다리)", "원투 가자미류"], size: "20cm 이하", close: [{f: 1201, t: 131}]},
+  {g: "어류", k: "도다리(문치가자미)", al: ["도다리", "가자미(도다리)"], size: "20cm 이하", close: [{f: 1201, t: 131}]},
+  {g: "어류", k: "가자미류", al: ["가자미", "원투 가자미류"], size: "20cm 이하", note: "문치·참·용·기름가자미 모두 20cm 이하. 문치가자미(도다리)는 12/1~1/31 금어기"},
   {g: "어류", k: "참가자미", al: ["참가자미"], size: "20cm 이하"},
-  {g: "어류", k: "쥐노래미", al: ["노래미", "놀래미", "쥐노래미", "쥐놀래미"], size: "20cm 이하", close: [{f: 1101, t: 1231}], note: "백령·대청 일부 해역은 11/15~12/14"},
+  {g: "어류", k: "쥐노래미", al: ["쥐노래미", "쥐놀래미"], size: "20cm 이하", close: [{f: 1101, t: 1231}], note: "백령·대청 일부 해역은 11/15~12/14"},
+  {g: "어류", k: "노래미", al: ["노래미", "놀래미"], soft: true, size: "쥐노래미면 20cm 이하", cl: "쥐노래미면 금어기", close: [{f: 1101, t: 1231}], note: "노래미는 쥐노래미와 다른 종이라 규정이 없지만, 쥐노래미를 노래미·놀래미라고 부르는 경우가 많아요"},
   {g: "어류", k: "붕장어", al: ["붕장어", "장어", "아나고", "애장어"], size: "35cm 이하"},
   {g: "어류", k: "방어", al: ["방어"], size: "30cm 이하"},
   {g: "어류", k: "고등어", al: ["고등어"], size: "21cm 이하", close: [{f: 501, t: 531}], note: "금어기는 해마다 고시 (2026년 5/1~5/31)"},
@@ -568,7 +570,7 @@ function speciesHTML(s) {
     const p = r ? regPeriod(r, loc) : null, now = !!(p && inRange(d, p.f, p.t));
     const sub = [];
     if (r && r.size) sub.push(r.size.replace(/ 이하/, "↓").replace(/ \(.*\)$/, ""));
-    if (p) sub.push(now ? `금어기 중 ~${md(p.t)}` : `${r.cl ? "참문어 " : ""}금어기 ${md(p.f)}~${md(p.t)}`);
+    if (p) sub.push(now ? `금어기 중 ~${md(p.t)}` : `${r.cl || "금어기"} ${md(p.f)}~${md(p.t)}`);
     return {sp: r ? r.k.replace(/\(.*\)/, "") : sp, sub, now, reg: !!r};
   }).filter(Boolean);
   items.sort((a, b) => (b.now - a.now) || (b.reg - a.reg));
@@ -593,9 +595,9 @@ function regHTML(s) {
 }
 function rulesHTML() {
   const d = todayMD();
-  const now = REGS.filter(r => r.close && r.close.some(p => !p.re && inRange(d, p.f, p.t)));
+  const now = REGS.filter(r => !r.soft && r.close && r.close.some(p => !p.re && inRange(d, p.f, p.t)));
   const groups = [...new Set(REGS.map(r => r.g))];
-  const per = r => !r.close ? "-" : r.note && r.close.length > 1 ? esc(r.note) : `${md(r.close[0].f)}~${md(r.close[0].t)}${r.note ? `<br><small>${esc(r.note)}</small>` : ""}`;
+  const per = r => !r.close ? (r.note ? `<small>${esc(r.note)}</small>` : "-") : r.note && r.close.length > 1 ? esc(r.note) : `${md(r.close[0].f)}~${md(r.close[0].t)}${r.note ? `<br><small>${esc(r.note)}</small>` : ""}`;
   return `<h2>금지체장·금어기</h2><p>이 크기 이하는 잡으면 바로 놓아줘야 하고, 금어기에는 잡으면 안 돼요. 낚시로 잡아도 똑같이 적용돼요.</p>
     <h3>오늘 금어기인 어종</h3><p class="rg-today">${now.length ? now.map(r => `<span class="rg-now">${esc(r.k)}</span>`).join(" ") : "오늘은 금어기인 주요 어종이 없어요. 낙지·문어·소라처럼 지역마다 다른 어종은 아래 표를 확인하세요."}</p>
     ${groups.map(g => `<h3>${esc(g)}</h3><div class="rg-wrap"><table class="rg-tbl"><thead><tr><th>어종</th><th>금지 크기</th><th>금어기</th></tr></thead><tbody>${
