@@ -120,6 +120,7 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
 .panel[hidden]{display:none}
 .pnote{position:sticky;top:0;z-index:1;background:var(--warn-bg);color:var(--ink);font-size:12.5px;line-height:1.5;padding:10px 18px;border-bottom:1px solid var(--line)}
 .pin-in{max-width:640px;margin:0 auto;padding:16px 18px 28px}
+.cpfoot{margin:28px 0 0;font-size:11.5px;line-height:1.5;color:var(--muted)}
 .pin-in h2{font-size:19px;margin:6px 0 4px}
 .pin-in h3{font-size:15px;margin:22px 0 8px;color:var(--muted)}
 .pin-in p{font-size:14px;line-height:1.65;color:var(--muted);margin:4px 0 0}
@@ -203,8 +204,6 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
     <button id="grab" type="button" aria-label="목록 크기 바꾸기"><i></i></button>
     <div id="sortbar">
       <span id="count"></span>
-      <button class="sort on" data-s="rec" type="button">추천순</button>
-      <button class="sort" data-s="near" type="button">📍 가까운 순</button>
     </div>
     <div class="note" id="indexNote"></div>
     <div class="note" id="storeNote" hidden></div>
@@ -218,13 +217,11 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
       <button class="tab" data-t="shop" type="button"><span>🛒</span>쇼핑</button>
       <button class="tab" data-t="report" type="button"><span>✍️</span>제보</button>
     </nav>
-  <button id="locate" type="button" aria-label="내 위치">📍</button>
   <section id="detail" aria-label="장소 정보">
     <div id="dhead"><i></i><button id="dclose" type="button" aria-label="닫기">✕</button></div>
     <div id="dbody"></div>
   </section>
   <section id="shop" class="panel" hidden aria-label="쇼핑">
-    <div class="pnote">이 페이지는 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</div>
     <div class="pin-in" id="shopBody"></div>
   </section>
   <section id="report" class="panel" hidden aria-label="제보">
@@ -510,7 +507,8 @@ function shopHTML() {
   const CAMP_SUB = {"차박 매트": "트렁크·2열 평탄화", "차박 도킹텐트": "화장실 있는 곳에서 공간 넓히기", "캠핑 휴대용 화장실": "화장실 없는 노지 차박용"};
   return `<h2>낚시·차박 준비물</h2><p>지도에 있는 장소에서 자주 잡히는 어종 기준으로 골라둔 쿠팡 검색 링크예요. 누르면 쿠팡에서 바로 비교해 볼 수 있어요.</p>
     <h3>🎣 어종별 채비</h3><div class="shop-grid">${fish.map(k => card(k, k === "바다낚시 용품" ? "기본 소품 전체" : who(k).join("·"))).join("")}</div>
-    <h3>🚐 차박·캠핑</h3><div class="shop-grid">${camp.map(k => card(k, CAMP_SUB[k])).join("")}</div>`;
+    <h3>🚐 차박·캠핑</h3><div class="shop-grid">${camp.map(k => card(k, CAMP_SUB[k])).join("")}</div>
+    <p class="cpfoot">이 페이지는 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</p>`;
 }
 const REPORT_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdNCrFpTGOYYuU1_5tdGRjcajaDhQc8o0VIVnAVE_GBD6_8ZQ/viewform";
 const REPORT_TPL = "장소 이름:\n위치(주소나 근처 지명):\n낚시 / 차박 / 둘 다:\n화장실·개수대 있는지:\n잡힌 어종이나 차박 팁:\n주의할 점(금지구역 등):";
@@ -601,9 +599,6 @@ function locate(sortNear) {
     toast(err.code === 1 ? "위치 권한이 꺼져 있어요. 브라우저 설정에서 허용해 주세요" : "위치를 찾지 못했어요. 잠시 후 다시 시도해 주세요");
   }, {enableHighAccuracy: false, timeout: 10000, maximumAge: 300000});
 }
-$("locate").onclick = () => locate(false);
-// 이미 위치 권한을 허용한 사람은 자동으로 가까운 순
-try { navigator.permissions && navigator.permissions.query({name: "geolocation"}).then(r => { if (r.state === "granted") locate(true); }).catch(() => {}); } catch (e) {}
 
 measureTop();
 paintTabs();
