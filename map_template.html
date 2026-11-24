@@ -205,9 +205,7 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
     <div id="sortbar">
       <span id="count"></span>
     </div>
-    <div class="note" id="indexNote"></div>
     <div class="note" id="storeNote" hidden></div>
-    <div class="note">장소 정보의 추천 장비 링크는 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</div>
     <div id="list"></div>
   </aside>
   <div id="map"></div>
@@ -258,7 +256,6 @@ async function initStore() {
     return { async save(k, rec) { while (busy[k]) await busy[k]; busy[k] = col.doc(k).set(rec).finally(() => { busy[k] = null; }); return busy[k]; } };
   }
   try { Object.assign(MINE, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch (e) {}
-  setNote("가봤어요·메모는 이 폰(브라우저)에만 저장돼요.");
   return { async save() { try { localStorage.setItem(LS_KEY, JSON.stringify(MINE)); } catch (e) { throw e; } } };
 }
 const mineOf = s => MINE[s.key] || {};
@@ -347,7 +344,7 @@ function detail(s) {
   const facs = [["toilet", "화장실"], ["flush_toilet", "수세식"], ["water", "개수대"], ["shower", "샤워"],
     ["free_parking", "무료주차"], ["free", "무료"], ["cooking_ok", "취사 가능"]]
     .filter(([k]) => f[k]).map(([k, n]) => `<span class="${f[k] === "no" ? "n" : "y"}">${f[k] === "near" ? "근처 " : ""}${n}</span>`).join("");
-  const idx = s.index ? `<div class="sec"><b>날짜별 낚시 여건 · ${esc(s.index.name)} ${esc(s.index.type)} 기준(${s.index.km}km)</b>
+  const idx = s.index ? `<div class="sec"><b>날짜별 낚시 여건 · ${esc(s.index.name)} ${esc(s.index.type)} 기준(${s.index.km}km)</b><div class="meta" style="margin-bottom:4px">국립해양조사원 바다낚시지수${META.index_at ? ` · ${esc(META.index_at)} 기준` : ""} · 금지구역·야영 규정은 출발 전 지자체 안내 확인</div>
     <div class="idxwrap"><table class="idx"><tr><th>날짜</th><th></th><th>어종</th><th>낚시</th><th>물때</th></tr>${
       s.index.rows.slice(0, 10).map(r => `<tr><td>${esc(String(r.date || "").slice(5).replace("-", "/"))}</td><td>${esc(r.noon || "")}</td><td>${esc(r.fish || "")}</td><td class="lv ${lvCls(r.index)}">${esc(lvTxt(r.index))}</td><td>${esc(r.tide || "")}</td></tr>`).join("")
     }</table></div></div>` : "";
@@ -393,7 +390,6 @@ SPOTS.forEach((s, i) => {
 });
 [...new Set(SPOTS.map(s => s.region.split(" ")[0]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko"))
   .forEach(r => $("region").insertAdjacentHTML("beforeend", `<option>${esc(r)}</option>`));
-$("indexNote").textContent = META.index_at ? `낚시 여건: 국립해양조사원 바다낚시지수(${META.index_at} 기준) · 금지구역·야영 규정은 출발 전 지자체 안내를 확인하세요` : "";
 
 // ---------- 모바일: 위 검색창 높이, 아래 목록 시트 ----------
 const side = $("side"), app = $("app");
