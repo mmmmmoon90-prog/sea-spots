@@ -88,6 +88,29 @@ def norm_region(addr):
     return r
 
 
+# 낚시·차박 장소가 될 수 없는 카카오 장소(시청·역·식당·편의점·주유소·가게 등)는 위치 후보에서 뺌
+BAD_GROUP = {"FD6", "CE7", "CS2", "MT1", "AC5", "AG2", "BK9", "HP8", "PM9", "OL7", "SC4", "PS3", "SW8", "PO3"}
+BAD_TOP = ("음식점", "쇼핑", "서비스,산업", "가정,생활", "의료,건강", "교육,학문", "금융,보험", "부동산", "자동차", "사회,공공기관")
+BAD_NAME = r"(시청|군청|구청|도청|청사|주민센터|행정복지센터|읍사무소|면사무소|역|터미널|주유소|충전소|편의점|민박|모텔|호텔|펜션|식당|횟집|카페|마트|시장|빵집)$"
+# '명품 노지', '숨은 차박지'처럼 장소 이름이 아닌 일반 표현 (이것만으로는 위치를 찾지 않음)
+GENERIC = re.compile(r"^(명품|숨은|숨겨진|비밀|최고의?|무료|조용한|나만의|인생|오션뷰|바다뷰|뷰맛집|역대급|1만원|만원)?"
+                     r"(노지|노지캠핑지?|차박지?|차박명소|캠핑지|포인트|낚시터|명당|스팟|해변|바다|바닷가|방파제|갯바위|항구|섬|강변|계곡|주차장)?$")
+
+
+def is_generic(name):
+    return bool(GENERIC.match(simplify(name)))
+
+
+def bad_place(doc, query):
+    cat = doc.get("category_name") or ""
+    if doc.get("category_group_code") in BAD_GROUP or cat.startswith(BAD_TOP):
+        return True
+    if "숙박" in cat and not re.search(r"(캠핑|야영|글램핑|오토캠)", cat + doc.get("place_name", "")):
+        return True
+    m = re.search(BAD_NAME, simplify(doc.get("place_name")))
+    return bool(m) and m.group(1) not in simplify(query)  # 찾던 이름에 '역'·'시장'이 들어 있으면 허용
+
+
 PLACE_END = r"(항|포구|방파제|방조제|해수욕장|해변|선착장|등대|쉼터|저수지|갯바위|해안|공원|캠핑장|오토캠핑장|휴게소|센터)"
 
 
@@ -106,7 +129,7 @@ def base_names(name):
     seen, res = {name}, []
     for c in out:
         c = c.strip()
-        if len(c) >= 2 and c not in seen and not re.search(r"(포인트|구간|구역|근처|번)$", c):
+        if len(c) >= 2 and c not in seen and not is_generic(c) and not re.search(r"(포인트|구간|구역|근처|번)$", c):
             seen.add(c)
             res.append(c)
     return res[:4]
@@ -117,10 +140,17 @@ def geocode(name, region, cache):
     if key in cache:
         return cache[key]
     toks = region_tokens(region)
+    n = simplify(name)
+    # '태안', '거제시'처럼 지역 이름뿐이면 시청 같은 엉뚱한 곳이 잡히므로 찾지 않음
+    if is_generic(name) or n in [simplify(t) for t in toks] or re.fullmatch(r".{1,4}(시|군|구|읍|면)", n):
+        cache[key] = None
+        return None
     best = None
     for q in ([f"{region} {name}".strip(), name] if region else [name]):
         docs = kakao({"query": q, "size": 15})
         for d in docs:
+            if bad_place(d, name):
+                continue
             addr = (d.get("address_name") or "") + " " + (d.get("road_address_name") or "")
             if toks and not any(t in addr for t in toks[-1:] + toks[:1]):
                 continue  # 지역이 전혀 안 맞으면 버림 (동명이인 장소 방지)
@@ -138,6 +168,7 @@ def geocode(name, region, cache):
         "address": doc.get("road_address_name") or doc.get("address_name", ""),
         "addr_region": norm_region(doc.get("address_name")),
         "category": (doc.get("category_name") or "").split(" > ")[-1],
+        "cat_full": doc.get("category_name") or "",
         "url": doc.get("place_url", ""),
     }
     return cache[key]
@@ -158,9 +189,8 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(SITE, exist_ok=True)
     geo, tcache = load_json(GEO_CACHE, {}), load_json(TOILET_CACHE, {})
-    for k in [k for k, v in geo.items()  # 예전 규칙으로 엉뚱하게 붙은 긴 이름 결과는 다시 찾기
-              if v and len(simplify(v["place_name"])) > len(simplify(k.split("|", 1)[-1])) * 1.6 + 2]:
-        del geo[k]
+    if geo.get("__v") != 2:  # 예전 규칙으로 찾은 결과는 새 규칙(시청·가게·일반 표현 제외)으로 한 번 다시 찾기
+        geo = {"__v": 2}
 
     mentions = []
     for path in glob.glob(os.path.join(DATA, "extracted", "*.json")):
@@ -196,10 +226,18 @@ def main():
         if not g:
             name = s["name"].strip()
             cands = by_video.get(video["video_id"], [])
-            same = [c for c in cands if not s.get("region") or (c[0].get("region") or "") == s.get("region")] or cands
+            same = [c for c in cands if not s.get("region") or (c[0].get("region") or "") == s.get("region")]
+            # '태안 숨겨진 노지', '명품 노지 (위치 미기재)'처럼 어딘지 특정되지 않는 이름은 아무 데나 붙이지 않음
+            core = re.sub(r"\([^)]*\)", " ", name)
+            for t in region_tokens(s.get("region")):
+                core = core.replace(t, " ")
+            if is_generic(core) or re.search(r"(미상|미확인|미기재|명칭 ?없)", name):
+                missing.append((video, s))
+                continue
             hit = next((c for c in same if simplify(c[1]["place_name"]) in simplify(name)
                         or simplify(c[0]["name"]) in simplify(name)), None)  # '너울쉼터 근처' → 너울쉼터
-            if not hit:
+            subpoint = re.search(r"(포인트|구역|구간|번|근처|인근|주변|앞|옆|뒤|아래|밑|초입|끝|외항|내항|방파제|갯바위|선착장|등대|테트라|삼발이|석축|좌대|해변|노지|차박지|주차장)", name)
+            if not hit and subpoint:
                 ports = [c for c in same if re.search(r"(항|포구|방조제|방파제|선착장)$", c[1]["place_name"])]
                 pool = ports or same
                 if pool:

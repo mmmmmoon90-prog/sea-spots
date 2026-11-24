@@ -75,22 +75,36 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:3px 4px;te
 .visit.on{background:var(--ok);color:#fff}
 .mine textarea{font:inherit;font-size:13px;width:100%;margin-top:8px;min-height:60px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--bg);color:var(--ink)}
 .saved{font-size:11px;color:var(--muted);margin-top:4px;min-height:14px}
-#toggle{display:none}
+#grab{display:none}
 @media (max-width:760px){
-  #app{grid-template-columns:1fr}
-  #map,#side{grid-row:1;grid-column:1}
-  #side{align-self:end;height:50dvh;border-right:0;border-top:1px solid var(--line);border-radius:18px 18px 0 0;box-shadow:var(--shadow);transition:height .25s}
-  #side.min{height:160px}
-  #toggle{display:block;width:44px;height:5px;border-radius:5px;background:var(--line);margin:0 auto 8px;border:0}
+  #app{display:block;position:relative;height:100dvh;overflow:hidden}
+  #map{position:absolute;inset:0;height:auto}
+  #side{position:absolute;left:0;right:0;bottom:0;height:calc(100dvh - 56px);border-right:0;border-top:1px solid var(--line);
+    border-radius:18px 18px 0 0;box-shadow:var(--shadow);transform:translateY(var(--off,0px));
+    transition:transform .3s cubic-bezier(.2,.8,.2,1);will-change:transform}
+  #side.drag{transition:none}
+  #grab{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 18px calc(10px + env(safe-area-inset-bottom, 0px));touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;border:0;background:none;width:100%;font:inherit;color:var(--ink)}
+  #grab i{display:block;width:44px;height:5px;border-radius:5px;background:var(--muted);opacity:.45}
+  #peekText{font-size:13px;font-weight:700;min-height:19px}
+  #peekText small{font-weight:400;color:var(--muted);margin-left:6px}
+  header{padding:0 16px 10px}
+  h1{font-size:17px}
   .sub{display:none}
+  #count{display:none}
+  .chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:none}
+  #list{padding-bottom:var(--off,0px);overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .leaflet-control-zoom{display:none}
+  .leaflet-popup-content{width:min(290px,76vw)!important;max-height:52vh}
 }
 </style>
 </head>
 <body>
 <div id="app">
   <aside id="side">
+    <button id="grab" type="button" aria-label="목록 열고 닫기"><i></i><span id="peekText"></span></button>
     <header>
-      <button id="toggle" aria-label="목록 접기"></button>
       <h1><span class="f">바다낚시</span>·<span class="c">차박</span> 지도</h1>
       <p class="sub">유튜브 영상·댓글에서 모은 장소예요. 금지구역·야영 규정은 바뀔 수 있으니 출발 전에 지자체 안내를 꼭 확인하세요.</p>
       <div class="row">
@@ -159,10 +173,13 @@ async function saveMine(s, patch, st) {
 }
 
 // ---------- 지도 ----------
-const map = L.map("map").setView([36.0, 127.6], 7);
+const MOBILE = matchMedia("(max-width:760px)").matches;
+const KOREA = L.latLngBounds([33.1, 125.1], [38.6, 129.6]);
+const map = L.map("map", {zoomControl: !MOBILE, minZoom: 6, zoomSnap: 0.5,
+  maxBounds: L.latLngBounds([30.5, 121.5], [40.0, 133.0]), maxBoundsViscosity: 0.8});
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
-const cluster = L.markerClusterGroup({showCoverageOnHover: false, maxClusterRadius: 45,
+const cluster = L.markerClusterGroup({showCoverageOnHover: false, maxClusterRadius: 50, chunkedLoading: true,
   iconCreateFunction: c => L.divIcon({html: `<div>${c.getChildCount()}</div>`, className: "marker-cluster", iconSize: [38, 38]})});
 map.addLayer(cluster);
 
@@ -220,12 +237,52 @@ function popup(s) {
 
 SPOTS.forEach((s, i) => {
   s.id = i; s.today = todayIndex(s);
-  s.marker = L.marker([s.lat, s.lon], {icon: pinIcon(s), title: s.name}).bindPopup(() => popup(s), {maxWidth: 320});
+  s.marker = L.marker([s.lat, s.lon], {icon: pinIcon(s), title: s.name}).bindPopup(() => popup(s), {maxWidth: 320,
+    autoPanPaddingTopLeft: [16, 16], autoPanPaddingBottomRight: [16, MOBILE ? 96 : 16]});
   s.hay = [s.name, s.region, s.kind, s.aliases, ...(s.points || []).map(p => p.n + " " + p.d),...s.species, ...s.view].join(" ").toLowerCase();
 });
 [...new Set(SPOTS.map(s => s.region.split(" ")[0]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko"))
   .forEach(r => $("region").insertAdjacentHTML("beforeend", `<option>${esc(r)}</option>`));
 $("indexNote").textContent = META.index_at ? `바다낚시지수 ${META.index_at} 기준 · 출처 국립해양조사원` : "";
+
+// ---------- 모바일 아래 목록 (끌어서 열고 닫기) ----------
+const side = $("side");
+const PEEK = () => $("grab").offsetHeight + 2;
+let sheetState = MOBILE ? "peek" : "full", sheetOff = 0;
+function offsets() { const h = side.offsetHeight; return {full: 0, half: Math.max(0, h - innerHeight * 0.48), peek: Math.max(0, h - PEEK())}; }
+function applyOff(px) { sheetOff = px; side.style.setProperty("--off", px + "px"); }
+function sheetShown() { return MOBILE ? side.offsetHeight - sheetOff : 0; }
+function setSheet(st) {
+  if (!MOBILE) return;
+  sheetState = st; applyOff(offsets()[st]);
+  const t = $("peekText").querySelector("small");
+  if (t) t.textContent = st === "peek" ? "위로 올려 목록 보기" : "아래로 내려 지도 보기";
+}
+if (MOBILE) {
+  setSheet("peek");
+  let y0 = null, off0 = 0, t0 = 0, moved = false;
+  const grab = $("grab");
+  grab.addEventListener("pointerdown", e => { y0 = e.clientY; off0 = sheetOff; t0 = Date.now(); moved = false; side.classList.add("drag"); grab.setPointerCapture(e.pointerId); });
+  grab.addEventListener("pointermove", e => {
+    if (y0 === null) return; const dy = e.clientY - y0; if (Math.abs(dy) > 4) moved = true;
+    applyOff(Math.min(offsets().peek, Math.max(0, off0 + dy)));
+  });
+  const end = e => {
+    if (y0 === null) return; side.classList.remove("drag");
+    const dy = e.clientY - y0, v = dy / Math.max(1, Date.now() - t0); y0 = null;
+    const o = offsets();
+    if (!moved) { setSheet(sheetState === "peek" ? "half" : "peek"); return; }
+    if (v > 0.5) return setSheet(sheetOff > o.half ? "peek" : "half");
+    if (v < -0.5) return setSheet(sheetOff < o.half ? "full" : "half");
+    const near = Object.entries(o).sort((a, b) => Math.abs(a[1] - sheetOff) - Math.abs(b[1] - sheetOff))[0][0];
+    setSheet(near);
+  };
+  grab.addEventListener("pointerup", end); grab.addEventListener("pointercancel", end);
+  map.on("click", () => sheetState !== "peek" && setSheet("peek"));
+  map.on("popupopen", () => sheetState !== "peek" && setSheet("peek"));
+  $("q").addEventListener("focus", () => sheetState === "peek" && setSheet("full"));
+  addEventListener("resize", () => setSheet(sheetState));
+}
 
 const state = {layer: "all", opt: new Set()};
 document.querySelectorAll(".chips").forEach(g => g.addEventListener("click", e => {
@@ -254,6 +311,7 @@ function render(redraw) {
   if (redraw) { cluster.clearLayers(); cluster.addLayers(shown.map(s => s.marker)); }
   const done = SPOTS.filter(s => mineOf(s).visited).length;
   $("count").textContent = `${shown.length.toLocaleString()}곳` + (done ? ` · 가본 곳 ${done}곳` : "");
+  $("peekText").innerHTML = `${shown.length.toLocaleString()}곳 <small>${sheetState === "peek" ? "위로 올려 목록 보기" : "아래로 내려 지도 보기"}</small>`;
   $("list").innerHTML = shown.slice(0, 300).map(s => `<div class="item" data-id="${s.id}">
     <div class="name">${esc(s.name)} ${mineOf(s).visited ? '<span class="tag td">✓ 가봤어요</span>' : ""}</div>
     <div class="meta">${s.fishing ? '<span class="tag tf">낚시</span>' : ""}${s.chabak ? '<span class="tag tc">차박</span>' : ""}${esc(s.region)} · ${esc(s.kind)} · 영상 ${s.videos_n}</div>
@@ -261,7 +319,7 @@ function render(redraw) {
     ${mineOf(s).memo ? `<div class="memo-line">📝 ${esc(mineOf(s).memo)}</div>` : ""}</div>`).join("")
     || `<p style="padding:18px;color:var(--muted)">조건에 맞는 장소가 없어요.</p>`;
   if (redraw && shown.length && shown.length < SPOTS.length) {
-    const sheet = innerWidth <= 760 ? $("side").offsetHeight : 0;
+    const sheet = sheetShown();
     map.fitBounds(L.latLngBounds(shown.map(s => [s.lat, s.lon])), {maxZoom: 14, paddingTopLeft: [40, 60], paddingBottomRight: [30, 30 + sheet]});
   }
 }
@@ -275,12 +333,13 @@ $("list").addEventListener("click", e => {
   const s = SPOTS[+el.dataset.id];
   document.querySelectorAll(".item.on").forEach(x => x.classList.remove("on")); el.classList.add("on");
   cluster.zoomToShowLayer(s.marker, () => s.marker.openPopup());
-  if (innerWidth <= 760) $("side").classList.add("min");
+  if (MOBILE) setSheet("peek");
 });
-$("q").addEventListener("input", () => render(true));
+let qTimer; $("q").addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(() => render(true), 300); });
 $("region").addEventListener("change", () => render(true));
-$("toggle").addEventListener("click", () => $("side").classList.toggle("min"));
 render(true);
+setSheet(sheetState);
+map.fitBounds(KOREA, {paddingBottomRight: [0, sheetShown()], animate: false});
 initStore().then(s => { store = s; refreshMine(); });
 </script>
 </body>
