@@ -27,10 +27,10 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif}
 button{font:inherit;color:inherit}
-#app{display:grid;grid-template-columns:390px 1fr;grid-template-rows:auto 1fr;height:100dvh}
+#app{display:grid;grid-template-columns:390px 1fr;grid-template-rows:auto 1fr auto;height:100dvh}
 #top{grid-column:1;grid-row:1;background:var(--panel);border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:16px 18px 10px;z-index:3}
 #side{grid-column:1;grid-row:2;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;z-index:2}
-#map{grid-column:2;grid-row:1/3;height:100%;z-index:1}
+#map{grid-column:2;grid-row:1/4;height:100%;z-index:1}
 h1{margin:0;font-size:20px;font-weight:900;letter-spacing:-.02em}
 h1 .f{color:var(--fish)} h1 .c{color:var(--camp)}
 .sub{margin:4px 0 10px;color:var(--muted);font-size:12px;line-height:1.5}
@@ -96,7 +96,6 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
 .lv{font-weight:700} .lv.g{color:var(--ok)} .lv.b{color:var(--warn)}
 .addr{display:flex;gap:8px;align-items:center;color:var(--muted)}
 .addr button{flex:none;border:1px solid var(--line);background:none;border-radius:8px;padding:3px 8px;font-size:12px;cursor:pointer}
-.vids a{display:inline-block;color:var(--fish);font-weight:700;margin:0 12px 4px 0;text-decoration:none}
 .gearbox{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .cpnote{font-size:11.5px;color:var(--muted);line-height:1.5;margin-bottom:8px}
 .gears{display:flex;flex-wrap:wrap;gap:6px}
@@ -107,6 +106,25 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
 .mine textarea{font:inherit;font-size:16px;width:100%;margin-top:8px;min-height:70px;resize:vertical;border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--bg);color:var(--ink)}
 .saved{font-size:11px;color:var(--muted);margin-top:4px;min-height:14px}
 #grab,#detail{display:none}
+#tabs{grid-column:1;grid-row:3;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--panel);border-right:1px solid var(--line);border-top:1px solid var(--line);padding:6px 10px;z-index:3}
+.tab{display:flex;align-items:center;justify-content:center;gap:5px;border:0;background:none;border-radius:10px;padding:8px 4px;font-size:13.5px;font-weight:700;color:var(--muted);cursor:pointer}
+.tab span{font-size:16px}
+.tab.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.panel{position:absolute;top:0;bottom:0;left:390px;right:0;z-index:7;background:var(--panel);overflow:auto;overscroll-behavior:contain}
+.panel[hidden]{display:none}
+.pnote{position:sticky;top:0;z-index:1;background:var(--warn-bg);color:var(--ink);font-size:12.5px;line-height:1.5;padding:10px 18px;border-bottom:1px solid var(--line)}
+.pin-in{max-width:640px;margin:0 auto;padding:16px 18px 28px}
+.pin-in h2{font-size:19px;margin:6px 0 4px}
+.pin-in h3{font-size:15px;margin:22px 0 8px;color:var(--muted)}
+.pin-in p{font-size:14px;line-height:1.65;color:var(--muted);margin:4px 0 0}
+.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.shop-item{display:flex;flex-direction:column;gap:3px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);text-decoration:none}
+.shop-item b{font-size:14.5px}
+.shop-item small{font-size:12px;color:var(--muted);line-height:1.4}
+.rep-steps{margin:14px 0 0;padding-left:20px;font-size:14px;line-height:1.8}
+.rep-tpl{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:13.5px;line-height:1.6;margin-top:12px}
+.rep-btn{display:block;text-align:center;margin-top:12px;border-radius:12px;padding:13px;font-weight:700;font-size:15px;border:0;background:var(--me);color:#fff;text-decoration:none;cursor:pointer;width:100%}
+.rep-btn.ghost{background:none;border:1px solid var(--line);color:var(--ink)}
 #toast{position:absolute;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:9px 16px;border-radius:20px;font-size:13px;z-index:9;opacity:0;pointer-events:none;transition:opacity .2s}
 #toast.on{opacity:1}
 
@@ -122,27 +140,36 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
   .chips{padding:2px 0 6px}
   .chip{box-shadow:0 2px 8px rgba(10,40,55,.14);padding:8px 13px}
   .sep{display:none}
-  #side{position:absolute;left:0;right:0;bottom:0;height:calc(100dvh - var(--top) - 6px);border-right:0;border-top:1px solid var(--line);
+  #side{position:absolute;left:0;right:0;bottom:var(--tabh);height:calc(100dvh - var(--top) - 6px - var(--tabh));border-right:0;border-top:1px solid var(--line);
     border-radius:18px 18px 0 0;box-shadow:var(--shadow);transform:translateY(var(--off,0px));
     transition:transform .3s cubic-bezier(.2,.8,.2,1);will-change:transform;z-index:5}
   #side.drag{transition:none}
-  #side.away{transform:translateY(100%)}
+  #side.away{transform:translateY(calc(100% + var(--tabh)))}
   #grab{display:flex;justify-content:center;padding:9px 0 3px;touch-action:none;cursor:grab;border:0;background:none;width:100%}
   #grab i{display:block;width:44px;height:5px;border-radius:5px;background:var(--muted);opacity:.45}
-  #sortbar{touch-action:none;padding:4px 16px 10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));border-bottom:1px solid var(--line)}
+  #sortbar{touch-action:none;padding:4px 16px 10px;border-bottom:1px solid var(--line)}
+  #app{--tabh:calc(58px + env(safe-area-inset-bottom,0px))}
+  #tabs{position:fixed;left:0;right:0;bottom:0;z-index:8;margin:0;border:0;border-top:1px solid var(--line);border-radius:0;background:var(--panel);
+    padding:4px max(6px,env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px));height:var(--tabh)}
+  .tab{flex-direction:column;gap:1px;font-size:11.5px;padding:4px 2px}
+  .tab span{font-size:20px}
+  .tab.on{background:none;box-shadow:none;color:var(--me)}
+  .panel{left:0;bottom:var(--tabh);padding-top:env(safe-area-inset-top,0px)}
+  #toast{bottom:calc(var(--tabh) + 14px)}
   #count{font-size:15px}
   #list{padding-bottom:calc(var(--off,0px) + 12px);overscroll-behavior:contain}
   .item{padding:14px 16px}
   .leaflet-control-zoom{display:none}
   .leaflet-control-attribution{font-size:9px}
-  #detail{display:flex;flex-direction:column;position:absolute;left:0;right:0;bottom:0;max-height:62dvh;background:var(--panel);border-radius:18px 18px 0 0;box-shadow:var(--shadow);z-index:6;
+  #detail{display:flex;flex-direction:column;position:absolute;left:0;right:0;bottom:var(--tabh);max-height:calc(62dvh - var(--tabh) + 40px);background:var(--panel);border-radius:18px 18px 0 0;box-shadow:var(--shadow);z-index:6;
     transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1)}
   #detail.on{transform:translateY(var(--doff,0px))}
+  #detail:not(.on){transform:translateY(calc(105% + var(--tabh)))}
   #detail.drag{transition:none}
   #dhead{display:flex;align-items:center;justify-content:center;position:relative;padding:9px 0 2px;touch-action:none}
   #dhead i{display:block;width:44px;height:5px;border-radius:5px;background:var(--muted);opacity:.45}
   #dclose{position:absolute;right:8px;top:4px;width:40px;height:40px;border:0;background:none;font-size:22px;color:var(--muted);cursor:pointer}
-  #dbody{overflow:auto;padding:2px 16px calc(18px + env(safe-area-inset-bottom,0px));overscroll-behavior:contain}
+  #dbody{overflow:auto;padding:2px 16px 18px;overscroll-behavior:contain}
   #dbody .pop h3{padding-right:34px}
 }
 </style>
@@ -151,16 +178,12 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
 <div id="app">
   <div id="top">
     <h1><span class="f">바다낚시</span>·<span class="c">차박</span> 지도</h1>
-    <p class="sub">유튜브 영상·댓글에서 모은 장소예요. 금지구역·야영 규정은 바뀔 수 있으니 출발 전에 지자체 안내를 꼭 확인하세요.</p>
+    <p class="sub">낚시꾼·차박러들이 다녀온 장소를 모았어요. 금지구역·야영 규정은 바뀔 수 있으니 출발 전에 지자체 안내를 꼭 확인하세요.</p>
     <div class="search">
       <label class="sbox"><input id="q" type="search" enterkeyhint="search" placeholder="장소·어종·지역 (예: 감성돔, 거제)" autocomplete="off"><button id="qx" type="button" aria-label="검색어 지우기" hidden>✕</button></label>
       <select id="region" aria-label="지역"><option value="">전체 지역</option></select>
     </div>
     <div class="chips" id="chips">
-      <button class="chip on" data-g="layer" data-v="all">전체</button>
-      <button class="chip" data-g="layer" data-v="fish">🎣 낚시</button>
-      <button class="chip" data-g="layer" data-v="camp">🚐 차박</button>
-      <span class="sep"></span>
       <button class="chip" data-g="opt" data-v="toilet">🚻 화장실</button>
       <button class="chip" data-g="opt" data-v="water">🚰 개수대</button>
       <button class="chip" data-g="opt" data-v="free">무료</button>
@@ -174,7 +197,7 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
     <button id="grab" type="button" aria-label="목록 크기 바꾸기"><i></i></button>
     <div id="sortbar">
       <span id="count"></span>
-      <button class="sort on" data-s="rec" type="button">영상 많은 순</button>
+      <button class="sort on" data-s="rec" type="button">추천순</button>
       <button class="sort" data-s="near" type="button">📍 가까운 순</button>
     </div>
     <div class="note" id="indexNote"></div>
@@ -183,10 +206,23 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
     <div id="list"></div>
   </aside>
   <div id="map"></div>
+  <nav id="tabs" aria-label="메뉴">
+      <button class="tab" data-t="fish" type="button"><span>🎣</span>낚시</button>
+      <button class="tab" data-t="camp" type="button"><span>🚐</span>차박</button>
+      <button class="tab" data-t="shop" type="button"><span>🛒</span>쇼핑</button>
+      <button class="tab" data-t="report" type="button"><span>✍️</span>제보</button>
+    </nav>
   <button id="locate" type="button" aria-label="내 위치">📍</button>
   <section id="detail" aria-label="장소 정보">
     <div id="dhead"><i></i><button id="dclose" type="button" aria-label="닫기">✕</button></div>
     <div id="dbody"></div>
+  </section>
+  <section id="shop" class="panel" hidden aria-label="쇼핑">
+    <div class="pnote">이 페이지는 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</div>
+    <div class="pin-in" id="shopBody"></div>
+  </section>
+  <section id="report" class="panel" hidden aria-label="제보">
+    <div class="pin-in" id="reportBody"></div>
   </section>
   <div id="toast" role="status"></div>
 </div>
@@ -312,14 +348,13 @@ function detail(s) {
     <div class="idxwrap"><table class="idx"><tr><th>날짜</th><th></th><th>어종</th><th>낚시</th><th>물때</th></tr>${
       s.index.rows.slice(0, 10).map(r => `<tr><td>${esc(String(r.date || "").slice(5).replace("-", "/"))}</td><td>${esc(r.noon || "")}</td><td>${esc(r.fish || "")}</td><td class="lv ${lvCls(r.index)}">${esc(lvTxt(r.index))}</td><td>${esc(r.tide || "")}</td></tr>`).join("")
     }</table></div></div>` : "";
-  const vids = s.videos.map((v, i) => `<a href="https://youtu.be/${esc(v.id)}" target="_blank" rel="noopener">▶ ${esc(v.title || "영상 " + (i + 1))}</a>`).join("<br>");
   el.innerHTML = `<h3>${esc(s.name)}</h3>
     <div>${s.fishing ? '<span class="tag tf">낚시</span>' : ""}${s.chabak ? '<span class="tag tc">차박</span>' : ""}<span class="meta">${esc(s.region)} · ${esc(s.kind)}${d != null ? ` · <b style="color:var(--me)">${fmtKm(d)}</b>` : ""}</span></div>
     <div class="acts">
       <a class="act main" href="${esc(L_.route)}" target="_blank" rel="noopener"><span>🧭</span>길찾기</a>
       <a class="act" href="${esc(L_.kakao)}" target="_blank" rel="noopener"><span>🗺️</span>카카오맵</a>
       <a class="act" href="${esc(L_.naver)}" target="_blank" rel="noopener"><span>🅽</span>네이버</a>
-      ${s.videos.length ? `<a class="act" href="https://youtu.be/${esc(s.videos[0].id)}" target="_blank" rel="noopener"><span>▶</span>영상</a>` : `<button class="act" type="button" data-copy><span>📋</span>주소</button>`}
+      <button class="act" type="button" data-copy><span>📋</span>주소</button>
     </div>
     ${s.today ? `<div class="sec"><b>오늘 낚시 여건 (물때·파도·바람·수온 등 종합)</b><span class="lv ${lvCls(s.today.index)}">낚시하기 ${esc(lvTxt(s.today.index))}</span> ${esc(s.today.fish || "")} · ${esc(s.today.tide || "")}</div>` : ""}
     ${s.warnings.length ? `<div class="sec warn"><b>주의</b>${s.warnings.map(esc).join("<br>")}</div>` : ""}
@@ -329,10 +364,9 @@ function detail(s) {
     ${(s.points || []).length ? `<div class="sec"><b>세부 포인트</b>${s.points.map(p => `<div>· <b>${esc(p.n)}</b>${p.d ? ` ${esc(p.d)}` : ""}</div>`).join("")}</div>` : ""}
     ${s.tips.length ? `<div class="sec"><b>팁</b>${s.tips.map(t => "· " + esc(t)).join("<br>")}</div>` : ""}
     ${s.view.length ? `<div class="sec"><b>뷰</b>${esc(s.view.join(", "))}</div>` : ""}
-    ${s.reviews.length ? `<div class="sec"><b>시청자 후기 (좋음 ${s.good} · 별로 ${s.bad})</b>${s.reviews.map(r => `<div class="rev">${r.v === "good" ? "👍" : r.v === "bad" ? "👎" : "🤔"} ${esc(r.t)}</div>`).join("")}</div>` : ""}
+    ${s.reviews.length ? `<div class="sec"><b>다녀온 사람들 후기 (좋음 ${s.good} · 별로 ${s.bad})</b>${s.reviews.map(r => `<div class="rev">${r.v === "good" ? "👍" : r.v === "bad" ? "👎" : "🤔"} ${esc(r.t)}</div>`).join("")}</div>` : ""}
     ${idx}
     ${s.address ? `<div class="sec addr"><span>${esc(s.address)}</span><button type="button" data-copy>복사</button></div>` : ""}
-    ${vids ? `<div class="sec vids"><b>영상 ${s.videos_n}개</b>${vids}</div>` : ""}
     ${gear(s)}
     <div class="mine"><button class="visit" type="button"></button>
       <textarea placeholder="메모·후기 (예: 우럭 5마리, 화장실 깨끗함, 주말엔 자리 없음)" maxlength="1000"></textarea><div class="saved"></div></div>`;
@@ -430,8 +464,7 @@ if (MOBILE) {
 const state = {layer: "all", opt: new Set(), sort: "rec"};
 $("chips").addEventListener("click", e => {
   const c = e.target.closest(".chip"); if (!c) return;
-  if (c.dataset.g === "layer") { state.layer = c.dataset.v; document.querySelectorAll('.chip[data-g="layer"]').forEach(x => x.classList.toggle("on", x === c)); }
-  else {
+  {
     const v = c.dataset.v;
     if (state.opt.has(v)) state.opt.delete(v); else { state.opt.add(v); if (v === "done") state.opt.delete("todo"); if (v === "todo") state.opt.delete("done"); }
     document.querySelectorAll('.chip[data-g="opt"]').forEach(x => x.classList.toggle("on", state.opt.has(x.dataset.v)));
@@ -443,6 +476,50 @@ document.querySelectorAll(".sort").forEach(b => b.addEventListener("click", () =
   setSort(b.dataset.s); render(false);
   if (MOBILE && sheetState === "peek") setSheet("half");
 }));
+// ---------- 하단 탭: 낚시 / 차박 / 쇼핑 / 제보 ----------
+let panel = null;
+function paintTabs() {
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", panel ? b.dataset.t === panel : b.dataset.t === state.layer));
+}
+function showPanel(p) {
+  panel = p;
+  $("shop").hidden = p !== "shop"; $("report").hidden = p !== "report";
+  if (p) { if (detailOn) closeDetail(); (p === "shop" ? $("shop") : $("report")).scrollTop = 0; }
+  paintTabs();
+}
+$("tabs").addEventListener("click", e => {
+  const b = e.target.closest(".tab"); if (!b) return;
+  const t = b.dataset.t;
+  if (t === "shop" || t === "report") { showPanel(panel === t ? null : t); return; }
+  if (panel) { showPanel(null); if (state.layer === t) return; }
+  state.layer = state.layer === t ? "all" : t;
+  if (state.layer === "all") toast("낚시·차박 전체를 보여줘요");
+  paintTabs(); render(true);
+  if (MOBILE && detailOn) closeDetail();
+});
+function shopHTML() {
+  const fish = Object.keys(CP).filter(k => !/차박|캠핑/.test(k)), camp = Object.keys(CP).filter(k => /차박|캠핑/.test(k));
+  const who = k => Object.entries(CP_FISH).filter(([, v]) => v === k).map(([f]) => f).filter((f, i, a) => a.indexOf(f) === i);
+  const card = (k, sub) => `<a class="shop-item" href="https://link.coupang.com/a/${CP[k]}" target="_blank" rel="sponsored noopener"><b>${/차박|캠핑/.test(k) ? "🚐" : "🎣"} ${esc(k)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</a>`;
+  const CAMP_SUB = {"차박 매트": "트렁크·2열 평탄화", "차박 도킹텐트": "화장실 있는 곳에서 공간 넓히기", "캠핑 휴대용 화장실": "화장실 없는 노지 차박용"};
+  return `<h2>낚시·차박 준비물</h2><p>지도에 있는 장소에서 자주 잡히는 어종 기준으로 골라둔 쿠팡 검색 링크예요. 누르면 쿠팡에서 바로 비교해 볼 수 있어요.</p>
+    <h3>🎣 어종별 채비</h3><div class="shop-grid">${fish.map(k => card(k, k === "바다낚시 용품" ? "기본 소품 전체" : who(k).join("·"))).join("")}</div>
+    <h3>🚐 차박·캠핑</h3><div class="shop-grid">${camp.map(k => card(k, CAMP_SUB[k])).join("")}</div>`;
+}
+const REPORT_URL = "";
+const REPORT_TPL = "장소 이름:\n위치(주소나 근처 지명):\n낚시 / 차박 / 둘 다:\n화장실·개수대 있는지:\n잡힌 어종이나 차박 팁:\n주의할 점(금지구역 등):";
+function reportHTML() {
+  return `<h2>장소 제보하기</h2><p>지도에 없는 포인트, 바뀐 정보(낚시 금지·야영 금지·화장실 철거 등)를 알려주세요. 확인한 뒤 지도에 반영할게요.</p>
+    ${REPORT_URL ? `<a class="rep-btn" href="${esc(REPORT_URL)}" target="_blank" rel="noopener">제보 양식 열기</a>`
+      : `<p style="margin-top:12px">제보 양식은 곧 열려요. 지금은 아래 내용을 복사해 두었다가 양식이 열리면 붙여넣어 주세요.</p>`}
+    <div class="rep-tpl" id="repTpl">${esc(REPORT_TPL)}</div>
+    <button class="rep-btn ghost" type="button" id="repCopy">양식 복사하기</button>
+    <ol class="rep-steps"><li>정확한 위치가 제일 중요해요. 카카오맵·네이버지도 장소 링크도 좋아요.</li><li>개인 사유지·통제구역은 받지 않아요.</li><li>사진이 있으면 양식에서 함께 올려주세요.</li></ol>`;
+}
+$("shopBody").innerHTML = shopHTML();
+$("reportBody").innerHTML = reportHTML();
+$("repCopy") && ($("repCopy").onclick = async () => { try { await navigator.clipboard.writeText(REPORT_TPL); toast("양식을 복사했어요"); } catch (e) { const r = document.createRange(); r.selectNodeContents($("repTpl")); getSelection().removeAllRanges(); getSelection().addRange(r); toast("길게 눌러 복사하세요"); } });
+
 function setSort(v) { state.sort = v; document.querySelectorAll(".sort").forEach(x => x.classList.toggle("on", x.dataset.s === v)); }
 
 function visible() {
@@ -466,7 +543,7 @@ function render(redraw) {
   $("count").textContent = `${shown.length.toLocaleString()}곳` + (done ? ` · 가본 곳 ${done}` : "");
   $("list").innerHTML = shown.slice(0, 300).map(s => `<button type="button" class="item${s.id === selId ? " on" : ""}" data-id="${s.id}">
     <div class="hd"><span class="name">${esc(s.name)} ${mineOf(s).visited ? '<span class="tag td">✓</span>' : ""}</span><span class="km">${fmtKm(distKm(s))}</span></div>
-    <div class="meta">${s.fishing ? '<span class="tag tf">낚시</span>' : ""}${s.chabak ? '<span class="tag tc">차박</span>' : ""}${esc(s.region)} · ${esc(s.kind)} · 영상 ${s.videos_n}</div>
+    <div class="meta">${s.fishing ? '<span class="tag tf">낚시</span>' : ""}${s.chabak ? '<span class="tag tc">차박</span>' : ""}${esc(s.region)} · ${esc(s.kind)}</div>
     <div class="icons">${hasToilet(s) ? "🚻 " : ""}${s.fac.water === "yes" ? "🚰 " : ""}${s.fac.free === "yes" ? "무료 " : ""}${s.good ? `👍${s.good} ` : ""}${s.bad ? `👎${s.bad} ` : ""}${s.today ? `<span class="lv ${lvCls(s.today.index)}">🎣 오늘 ${esc(lvTxt(s.today.index))}</span> ` : ""}${s.species.slice(0, 4).map(esc).join(", ")}</div>
     ${mineOf(s).memo ? `<div class="memo-line">📝 ${esc(mineOf(s).memo)}</div>` : ""}</button>`).join("")
     + (shown.length > 300 ? `<p style="padding:14px 18px;color:var(--muted);font-size:13px">300곳까지 보여줘요. 검색이나 필터로 좁혀 보세요.</p>` : "")
@@ -523,6 +600,7 @@ $("locate").onclick = () => locate(false);
 try { navigator.permissions && navigator.permissions.query({name: "geolocation"}).then(r => { if (r.state === "granted") locate(true); }).catch(() => {}); } catch (e) {}
 
 measureTop();
+paintTabs();
 render(true);
 setSheet("peek");
 map.fitBounds(KOREA, {paddingTopLeft: [0, MOBILE ? $("top").offsetHeight : 0], paddingBottomRight: [0, sheetShown()], animate: false});
