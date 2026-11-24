@@ -26,8 +26,6 @@ jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 300
-    environment:
-      name: github-pages
     env:
       FULL: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.full == '1') || github.event.schedule == '20 1 1 * *' }}
     steps:
@@ -87,6 +85,14 @@ jobs:
         with:
           path: site
 
+
+  deploy:
+    needs: run
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: GitHub Pages에 지도 게시
-        if: hashFiles('site/index.html') != ''
+        id: deployment
         uses: actions/deploy-pages@v4
