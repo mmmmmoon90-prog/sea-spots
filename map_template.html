@@ -506,15 +506,15 @@ function shopHTML() {
     <h3>🎣 어종별 채비</h3><div class="shop-grid">${fish.map(k => card(k, k === "바다낚시 용품" ? "기본 소품 전체" : who(k).join("·"))).join("")}</div>
     <h3>🚐 차박·캠핑</h3><div class="shop-grid">${camp.map(k => card(k, CAMP_SUB[k])).join("")}</div>`;
 }
-const REPORT_URL = "";
+const REPORT_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdNCrFpTGOYYuU1_5tdGRjcajaDhQc8o0VIVnAVE_GBD6_8ZQ/viewform";
 const REPORT_TPL = "장소 이름:\n위치(주소나 근처 지명):\n낚시 / 차박 / 둘 다:\n화장실·개수대 있는지:\n잡힌 어종이나 차박 팁:\n주의할 점(금지구역 등):";
 function reportHTML() {
   return `<h2>장소 제보하기</h2><p>지도에 없는 포인트, 바뀐 정보(낚시 금지·야영 금지·화장실 철거 등)를 알려주세요. 확인한 뒤 지도에 반영할게요.</p>
-    ${REPORT_URL ? `<a class="rep-btn" href="${esc(REPORT_URL)}" target="_blank" rel="noopener">제보 양식 열기</a>`
-      : `<p style="margin-top:12px">제보 양식은 곧 열려요. 지금은 아래 내용을 복사해 두었다가 양식이 열리면 붙여넣어 주세요.</p>`}
+    ${REPORT_URL ? `<a class="rep-btn" href="${esc(REPORT_URL)}" target="_blank" rel="noopener">✍️ 제보 양식 열기 (1분)</a>`
+      : `<p style="margin-top:12px">제보 양식은 곧 열려요. 지금은 아래 내용을 복사해 두었다가 양식이 열리면 붙여넣어 주세요.</p>
     <div class="rep-tpl" id="repTpl">${esc(REPORT_TPL)}</div>
-    <button class="rep-btn ghost" type="button" id="repCopy">양식 복사하기</button>
-    <ol class="rep-steps"><li>정확한 위치가 제일 중요해요. 카카오맵·네이버지도 장소 링크도 좋아요.</li><li>개인 사유지·통제구역은 받지 않아요.</li><li>사진이 있으면 양식에서 함께 올려주세요.</li></ol>`;
+    <button class="rep-btn ghost" type="button" id="repCopy">양식 복사하기</button>`}
+    <ol class="rep-steps"><li>정확한 위치가 제일 중요해요. 카카오맵·네이버지도 장소 링크도 좋아요.</li><li>개인 사유지·통제구역은 받지 않아요.</li><li>로그인 없이 보낼 수 있고, 이메일 같은 개인정보는 받지 않아요.</li></ol>`;
 }
 $("shopBody").innerHTML = shopHTML();
 $("reportBody").innerHTML = reportHTML();
