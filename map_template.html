@@ -118,6 +118,13 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
 .tab.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.12)}
 .panel{position:absolute;top:0;bottom:0;left:390px;right:0;z-index:7;background:var(--panel);overflow:auto;overscroll-behavior:contain}
 .panel[hidden]{display:none}
+.fishchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.fc{display:inline-flex;flex-direction:column;gap:1px;border:1px solid color-mix(in srgb,var(--fish) 35%,var(--line));background:color-mix(in srgb,var(--fish) 9%,var(--panel));border-radius:12px;padding:6px 10px;line-height:1.3}
+.fc b{font-size:14.5px;color:var(--ink)}
+.fc small{font-size:11.5px;color:var(--muted)}
+.fc.plain{padding:6px 10px;justify-content:center}
+.fc.now{border-color:var(--warn);background:var(--warn-bg)}
+.fc.now b,.fc.now small{color:var(--warn)}
 .rg{margin:2px 0}
 .rg b{font-weight:700}
 .rg.now{color:var(--warn)}
@@ -374,9 +381,8 @@ function detail(s) {
       <button class="act" type="button" data-copy><span>📋</span>주소</button>
     </div>
     ${s.today ? `<div class="sec"><b>오늘 낚시 여건 (물때·파도·바람·수온 등 종합)</b><span class="lv ${lvCls(s.today.index)}">낚시하기 ${esc(lvTxt(s.today.index))}</span> ${esc(s.today.fish || "")} · ${esc(s.today.tide || "")}</div>` : ""}
+    ${speciesHTML(s)}
     ${s.warnings.length ? `<div class="sec warn"><b>주의</b>${s.warnings.map(esc).join("<br>")}</div>` : ""}
-    ${s.species.length ? `<div class="sec"><b>어종</b>${esc(s.species.join(", "))}</div>` : ""}
-    ${regHTML(s)}
     ${facs ? `<div class="sec fac"><b>편의시설</b>${facs}</div>` : ""}
     ${s.toilets.length ? `<div class="sec"><b>근처 공중화장실</b>${s.toilets.map(t => `${esc(t.name)} ${t.m}m`).join(" · ")}</div>` : ""}
     ${(s.points || []).length ? `<div class="sec"><b>세부 포인트</b>${s.points.map(p => `<div>· <b>${esc(p.n)}</b>${p.d ? ` ${esc(p.d)}` : ""}</div>`).join("")}</div>` : ""}
@@ -547,6 +553,25 @@ function regsFor(s) {
   const out = [];
   for (const sp of s.species || []) { const r = REG_BY[sp]; if (r && !out.includes(r)) out.push(r); }
   return out;
+}
+function speciesHTML(s) {
+  if (!s.species.length) return "";
+  const loc = (s.region || "") + " " + (s.address || ""), d = todayMD(), seen = new Set();
+  const items = s.species.map(sp => {
+    const r = REG_BY[sp];
+    if (r) { if (seen.has(r)) return null; seen.add(r); }
+    const p = r ? regPeriod(r, loc) : null, now = !!(p && inRange(d, p.f, p.t));
+    const sub = [];
+    if (r && r.size) sub.push(r.size.replace(/ 이하/, "↓").replace(/ \(.*\)$/, ""));
+    if (p) sub.push(now ? `금어기 중 ~${md(p.t)}` : `${r.cl ? "참문어 " : ""}금어기 ${md(p.f)}~${md(p.t)}`);
+    return {sp: r ? r.k.replace(/\(.*\)/, "") : sp, sub, now, reg: !!r};
+  }).filter(Boolean);
+  items.sort((a, b) => (b.now - a.now) || (b.reg - a.reg));
+  const chips = items.map(x => x.sub.length
+    ? `<span class="fc${x.now ? " now" : ""}"><b>${x.now ? "🚫 " : ""}${esc(x.sp)}</b><small>${esc(x.sub.join(" · "))}</small></span>`
+    : `<span class="fc plain"><b>${esc(x.sp)}</b></span>`).join("");
+  const any = items.some(x => x.reg);
+  return `<div class="sec"><b>잡히는 어종</b><div class="fishchips">${chips}</div>${any ? `<div class="rg-src">↓는 그 크기 이하 방류 · 길이는 주둥이~꼬리 끝(전장) · 낚시로 잡아도 적용 · 자세한 건 📏 규정 탭</div>` : ""}</div>`;
 }
 function regHTML(s) {
   const rs = regsFor(s); if (!rs.length) return "";
