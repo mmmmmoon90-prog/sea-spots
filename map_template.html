@@ -237,7 +237,7 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
   <nav id="tabs" aria-label="메뉴">
       <button class="tab" data-t="fish" type="button"><span>🎣</span>낚시</button>
       <button class="tab" data-t="camp" type="button"><span>🚐</span>차박</button>
-      <button class="tab" data-t="rules" type="button"><span>📏</span>규정</button>
+      <button class="tab" data-t="rules" type="button"><span>🚫</span>규정</button>
       <button class="tab" data-t="shop" type="button"><span>🛒</span>쇼핑</button>
       <button class="tab" data-t="report" type="button"><span>✍️</span>제보</button>
     </nav>
@@ -578,7 +578,7 @@ function speciesHTML(s) {
     ? `<span class="fc${x.now ? " now" : ""}"><b>${x.now ? "🚫 " : ""}${esc(x.sp)}</b><small>${esc(x.sub.join(" · "))}</small></span>`
     : `<span class="fc plain"><b>${esc(x.sp)}</b></span>`).join("");
   const any = items.some(x => x.reg);
-  return `<div class="sec"><b>잡히는 어종</b><div class="fishchips">${chips}</div>${any ? `<div class="rg-src">↓는 그 크기 이하 방류 · 길이는 주둥이~꼬리 끝(전장) · 낚시로 잡아도 적용 · 자세한 건 📏 규정 탭</div>` : ""}</div>`;
+  return `<div class="sec"><b>잡히는 어종</b><div class="fishchips">${chips}</div>${any ? `<div class="rg-src">↓는 그 크기 이하 방류 · 길이는 주둥이~꼬리 끝(전장) · 낚시로 잡아도 적용 · 자세한 건 🚫 규정 탭</div>` : ""}</div>`;
 }
 function regHTML(s) {
   const rs = regsFor(s); if (!rs.length) return "";
