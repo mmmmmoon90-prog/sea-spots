@@ -68,6 +68,16 @@ jobs:
           KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
         run: python build.py
 
+      - name: 5. 이번 주말 추천 콘텐츠 만들기 (블로그 글·카드뉴스)
+        continue-on-error: true
+        env:
+          MAP_URL: https://recheegoo.s.gy/fishingmap
+        run: |
+          sudo apt-get install -y -qq fonts-noto-cjk > /dev/null
+          pip install -q playwright
+          python -m playwright install --with-deps chromium > /dev/null
+          python weekly.py
+
       - name: 결과 저장
         if: always()
         run: git add data site && (git commit -m "지도 갱신 $(date -u +%F)" && git push) || echo "변경 없음"
