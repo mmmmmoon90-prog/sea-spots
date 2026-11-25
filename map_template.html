@@ -354,17 +354,23 @@ async function copyText(t) {
 
 
 // ---------- 쿠팡 파트너스 추천 장비 ----------
-const CP = {"감성돔 채비": "iVX80MFiRo", "우럭 채비": "iVYjftsxZk", "볼락 루어": "iVYhJceqse", "고등어 카드채비": "iVYgTPOPe0", "도다리 채비": "iVYl9KeGYK", "벵에돔 채비": "iVYkdG24c0", "갑오징어 에기": "iVYozlG2mW", "쭈꾸미 채비": "iVYkSxptOm", "학꽁치 채비": "iVYnbhWjtZ", "전갱이 채비": "iVYpA7Scvs", "농어 루어": "iVYqCmHrFc", "문어 에기": "iVYrDO1XxY", "광어 다운샷": "iVYuwcvdrE", "삼치 메탈지그": "iVYvxAC1TM", "갈치 채비": "iVYwy6LNZs", "무늬오징어 에기": "iVYxABP8DI", "숭어 훌치기": "iVYyCEghSm", "바다낚시 용품": "iVYzDBUQRo", "차박 매트": "iVYAE5UYY8", "차박 도킹텐트": "iVYBGsSqnA", "캠핑 휴대용 화장실": "iVYCHXUMuq"};
+const CP = {"감성돔 채비": "iVX80MFiRo", "우럭 채비": "iVYjftsxZk", "볼락 루어": "iVYhJceqse", "고등어 카드채비": "iVYgTPOPe0", "도다리 채비": "iVYl9KeGYK", "벵에돔 채비": "iVYkdG24c0", "갑오징어 에기": "iVYozlG2mW", "쭈꾸미 채비": "iVYkSxptOm", "학꽁치 채비": "iVYnbhWjtZ", "전갱이 채비": "iVYpA7Scvs", "농어 루어": "iVYqCmHrFc", "문어 에기": "iVYrDO1XxY", "광어 다운샷": "iVYuwcvdrE", "삼치 메탈지그": "iVYvxAC1TM", "갈치 채비": "iVYwy6LNZs", "무늬오징어 에기": "iVYxABP8DI", "숭어 훌치기": "iVYyCEghSm", "바다낚시 용품": "iVYzDBUQRo", "차박 매트": "iVYAE5UYY8", "차박 도킹텐트": "iVYBGsSqnA", "캠핑 휴대용 화장실": "iVYCHXUMuq", "물고기 계측자": "iXcSN99zxc", "낚시 구명조끼": "iXcVfxMfVQ", "갯바위 낚시화": "iXcT415liC", "낚시 방한복": "iXcVqmkXHo"};
 const CP_FISH = {"감성돔":"감성돔 채비","우럭":"우럭 채비","노래미":"우럭 채비","놀래미":"우럭 채비","볼락":"볼락 루어","도다리":"도다리 채비","가자미":"도다리 채비","고등어":"고등어 카드채비","벵에돔":"벵에돔 채비","갑오징어":"갑오징어 에기","쭈꾸미":"쭈꾸미 채비","주꾸미":"쭈꾸미 채비","학꽁치":"학꽁치 채비","전갱이":"전갱이 채비","농어":"농어 루어","문어":"문어 에기","광어":"광어 다운샷","삼치":"삼치 메탈지그","갈치":"갈치 채비","풀치":"갈치 채비","무늬오징어":"무늬오징어 에기","호래기":"무늬오징어 에기","숭어":"숭어 훌치기"};
 const CP_NOTE = "이 게시물은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.";
+const SAFE = ["낚시 구명조끼", "갯바위 낚시화", "낚시 방한복", "물고기 계측자"];
+const SAFE_SUB = {"낚시 구명조끼": "방파제·갯바위 필수", "갯바위 낚시화": "테트라포드·갯바위 미끄럼 방지", "낚시 방한복": "겨울 밤낚시", "물고기 계측자": "금지체장 재는 줄자·스티커"};
 function gear(s) {
   const picks = [];
   if (s.fishing) {
     for (const sp of s.species) { const k = CP_FISH[sp]; if (k && !picks.includes(k)) picks.push(k); if (picks.length >= 2) break; }
     if (!picks.length) picks.push("바다낚시 용품");
+    const m = new Date().getMonth() + 1;
+    if (/테트라포드|갯바위/.test(s.kind + " " + s.warnings.join(" "))) picks.push("낚시 구명조끼");
+    else if (m >= 11 || m <= 2) picks.push("낚시 방한복");
+    else if (regsFor(s).some(r => r.size)) picks.push("물고기 계측자");
   }
   if (s.chabak) { picks.push("차박 매트"); picks.push(hasToilet(s) ? "차박 도킹텐트" : "캠핑 휴대용 화장실"); }
-  const btn = picks.filter(k => CP[k]).map(k => `<a class="gear" href="https://link.coupang.com/a/${CP[k]}" target="_blank" rel="sponsored noopener">${k.includes("차박") || k.includes("캠핑") ? "🚐" : "🎣"} ${esc(k)}</a>`).join("");
+  const btn = picks.filter(k => CP[k]).map(k => `<a class="gear" href="https://link.coupang.com/a/${CP[k]}" target="_blank" rel="sponsored noopener">${k.includes("차박") || k.includes("캠핑") ? "🚐" : SAFE.includes(k) ? "🦺" : "🎣"} ${esc(k)}</a>`).join("");
   return btn ? `<div class="sec gearbox"><b>이 장소 추천 장비</b><div class="cpnote">※ ${CP_NOTE}</div><div class="gears">${btn}</div></div>` : "";
 }
 function detail(s) {
@@ -626,12 +632,13 @@ $("tabs").addEventListener("click", e => {
   if (MOBILE && detailOn) closeDetail();
 });
 function shopHTML() {
-  const fish = Object.keys(CP).filter(k => !/차박|캠핑/.test(k)), camp = Object.keys(CP).filter(k => /차박|캠핑/.test(k));
+  const fish = Object.keys(CP).filter(k => !/차박|캠핑/.test(k) && !SAFE.includes(k)), camp = Object.keys(CP).filter(k => /차박|캠핑/.test(k));
   const who = k => Object.entries(CP_FISH).filter(([, v]) => v === k).map(([f]) => f).filter((f, i, a) => a.indexOf(f) === i);
-  const card = (k, sub) => `<a class="shop-item" href="https://link.coupang.com/a/${CP[k]}" target="_blank" rel="sponsored noopener"><b>${/차박|캠핑/.test(k) ? "🚐" : "🎣"} ${esc(k)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</a>`;
+  const card = (k, sub) => `<a class="shop-item" href="https://link.coupang.com/a/${CP[k]}" target="_blank" rel="sponsored noopener"><b>${/차박|캠핑/.test(k) ? "🚐" : SAFE.includes(k) ? "🦺" : "🎣"} ${esc(k)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</a>`;
   const CAMP_SUB = {"차박 매트": "트렁크·2열 평탄화", "차박 도킹텐트": "화장실 있는 곳에서 공간 넓히기", "캠핑 휴대용 화장실": "화장실 없는 노지 차박용"};
   return `<h2>낚시·차박 준비물</h2><p>지도에 있는 장소에서 자주 잡히는 어종 기준으로 골라둔 쿠팡 검색 링크예요. 누르면 쿠팡에서 바로 비교해 볼 수 있어요.</p>
     <h3>🎣 어종별 채비</h3><div class="shop-grid">${fish.map(k => card(k, k === "바다낚시 용품" ? "기본 소품 전체" : who(k).join("·"))).join("")}</div>
+    <h3>🦺 안전·방한·계측</h3><div class="shop-grid">${SAFE.map(k => card(k, SAFE_SUB[k])).join("")}</div>
     <h3>🚐 차박·캠핑</h3><div class="shop-grid">${camp.map(k => card(k, CAMP_SUB[k])).join("")}</div>
     <p class="cpfoot">이 페이지는 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</p>`;
 }
