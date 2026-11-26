@@ -96,12 +96,9 @@ select{font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:
 .fpin{position:relative}
 .fpin .plabel{position:absolute;left:50%;top:40px;transform:translateX(-50%);white-space:nowrap;background:#111315;color:#D9F23F;font-size:11.5px;font-weight:700;padding:2px 7px;border-radius:10px;box-shadow:var(--shadow)}
 .zlow .pl-sub{display:none}
-#weekbar{display:flex;gap:6px;margin-top:6px;overflow-x:auto;scrollbar-width:none}
-#weekbar::-webkit-scrollbar{display:none}
-#weekbar[hidden]{display:none}
-.wk{flex:none;border:0;border-radius:20px;padding:7px 12px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
-.wk.feat{background:#D9F23F;color:#111315} .wk.feat.on{background:#111315;color:#D9F23F}
-.wk.ch{background:var(--ink);color:var(--panel)} .wk.ch small{font-weight:500;opacity:.85}
+.chip.featc{background:#D9F23F;color:#111315;border-color:#D9F23F;font-weight:700}
+.chip.featc.on{background:#111315;color:#D9F23F;border-color:#111315}
+.chip.chohc{background:var(--ink);color:var(--panel);border-color:var(--ink);font-weight:700}
 .pin.done::after{content:"✓";position:absolute;right:-6px;top:-6px;transform:rotate(45deg);width:16px;height:16px;border-radius:50%;background:var(--ok);color:#fff;font-size:10px;display:grid;place-items:center;font-weight:900}
 .me{width:18px;height:18px;border-radius:50%;background:var(--me);border:3px solid #fff;box-shadow:0 0 0 6px color-mix(in srgb,var(--me) 25%,transparent)}
 .marker-cluster{background:transparent}
@@ -244,17 +241,17 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
       <select id="region" aria-label="지역"><option value="">전체 지역</option></select>
     </div>
     <div class="chips" id="chips">
+      <button class="chip featc" data-g="opt" data-v="feat" id="featChip" hidden>⭐ 이번 주 추천</button>
+      <button class="chip chohc" type="button" id="chohChip" hidden>🎣 요즘 조황</button>
       <select id="fishsel" aria-label="어종으로 찾기"><option value="">🐟 어종 전체</option></select>
       <button class="chip" data-g="opt" data-v="toilet">🚻 화장실</button>
       <button class="chip" data-g="opt" data-v="water">🚰 개수대</button>
       <button class="chip" data-g="opt" data-v="free">무료</button>
       <button class="chip" data-g="opt" data-v="good">👍 후기 좋음</button>
-      <button class="chip" data-g="opt" data-v="feat" id="featChip" hidden>⭐ 이번 주 추천</button>
       <button class="chip" data-g="opt" data-v="idx">🎣 오늘 낚시 좋음</button>
       <button class="chip" data-g="opt" data-v="done">✓ 가본 곳</button>
       <button class="chip" data-g="opt" data-v="todo">안 가본 곳</button>
     </div>
-    <div id="weekbar" hidden></div>
   </div>
   <aside id="side">
     <button id="grab" type="button" aria-label="목록 크기 바꾸기"><i></i></button>
@@ -539,7 +536,7 @@ $("chips").addEventListener("click", e => {
     if (state.opt.has(v)) state.opt.delete(v); else { state.opt.add(v); if (v === "done") state.opt.delete("todo"); if (v === "todo") state.opt.delete("done"); }
     document.querySelectorAll('.chip[data-g="opt"]').forEach(x => x.classList.toggle("on", state.opt.has(x.dataset.v)));
   }
-  render(true); if (typeof paintWeekbar === "function") paintWeekbar();
+  render(true);
 });
 document.querySelectorAll(".sort").forEach(b => b.addEventListener("click", () => {
   if (b.dataset.s === "near" && !me) { locate(true); return; }
@@ -772,21 +769,10 @@ $("list").addEventListener("click", e => {
 const CHOH = META.choh && META.choh.date && (Date.now() - new Date(META.choh.date + "T00:00:00+09:00")) < 8 * 864e5 ? META.choh : null;
 const chohOf = f => CHOH ? CHOH.seas.flatMap(s => s.top.filter(t => t.f === f).map(t => ({sea: s.sea, ...t}))) : [];
 if (SPOTS.some(s => s.feat)) $("featChip").hidden = false;
-function paintWeekbar() {
-  const nf = SPOTS.filter(s => s.feat).length, wb = $("weekbar"), parts = [];
-  if (nf) parts.push(`<button type="button" class="wk feat${state.opt.has("feat") ? " on" : ""}" data-w="feat">⭐ 이번 주말 추천 ${nf}곳</button>`);
-  if (CHOH) { const tops = CHOH.seas.filter(s => s.top.length).map(s => `${s.sea} ${s.top[0].f}`); if (tops.length) parts.push(`<button type="button" class="wk ch" data-w="choh">🎣 요즘 조황 <small>${esc(tops.join(" · "))}</small></button>`); }
-  wb.innerHTML = parts.join(""); wb.hidden = !parts.length;
+if (CHOH) {
+  $("chohChip").hidden = false;
+  $("chohChip").addEventListener("click", e => { e.stopPropagation(); const o = !$("choh").open || (MOBILE && sheetState === "peek"); $("choh").open = o; if (o) { if (MOBILE) setSheet("half"); else $("choh").scrollIntoView({block: "nearest"}); } });
 }
-$("weekbar").addEventListener("click", e => {
-  const b = e.target.closest(".wk"); if (!b) return;
-  if (b.dataset.w === "feat") {
-    if (state.opt.has("feat")) state.opt.delete("feat"); else state.opt.add("feat");
-    document.querySelectorAll('.chip[data-g="opt"]').forEach(x => x.classList.toggle("on", state.opt.has(x.dataset.v)));
-    render(true); paintWeekbar();
-    if (MOBILE && state.opt.has("feat")) setSheet("peek");
-  } else { $("choh").open = true; if (MOBILE) setSheet("half"); else $("choh").scrollIntoView({block: "nearest"}); }
-});
 function pickFish(f) {
   if ([...$("fishsel").options].some(o => o.value === f)) { $("fishsel").value = f; $("fishsel").dispatchEvent(new Event("change")); }
   else { $("choh").open = false; q.value = f; $("qx").hidden = false; render(true); if (MOBILE) setSheet("half"); }
@@ -851,7 +837,6 @@ function locate(sortNear) {
 
 measureTop();
 paintTabs();
-paintWeekbar();
 render(true);
 setSheet("peek");
 map.fitBounds(KOREA, {paddingTopLeft: [0, MOBILE ? $("top").offsetHeight : 0], paddingBottomRight: [0, sheetShown()], animate: false});
