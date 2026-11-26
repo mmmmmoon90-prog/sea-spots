@@ -336,6 +336,12 @@ def main():
 
     meta = {"built_at": time.strftime("%Y-%m-%d %H:%M", time.gmtime(time.time() + 9 * 3600)),
             "index_at": idx.get("fetched_at")}
+    try:
+        import extras
+        meta["featured"] = extras.apply_featured(spots, DATA)
+        meta["choh"] = extras.load_choh(DATA)
+    except Exception as e:
+        print("이번 주 추천·조황 붙이기 실패:", e)
     with open(os.path.join(HERE, "map_template.html"), encoding="utf-8") as f:
         html = f.read().replace("/*__SPOTS__*/[]", json.dumps(spots, ensure_ascii=False)) \
                        .replace("/*__META__*/{}", json.dumps(meta, ensure_ascii=False))
