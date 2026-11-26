@@ -66,6 +66,7 @@ jobs:
       - name: 4. 위치 확인·화장실·지수 붙여서 지도 만들기
         env:
           KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          CHOH_TOKEN: ${{ secrets.CHOH_TOKEN }}
         run: python build.py
 
       - name: 5. 이번 주말 추천 콘텐츠 만들기 (블로그 글·카드뉴스)
