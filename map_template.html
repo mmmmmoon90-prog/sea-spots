@@ -66,6 +66,24 @@ select{font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:
 .tf{background:color-mix(in srgb,var(--fish) 15%,transparent);color:var(--fish)}
 .tc{background:color-mix(in srgb,var(--camp) 18%,transparent);color:var(--camp)}
 .td{background:var(--ok-bg);color:var(--ok)}
+.tfeat{background:#D9F23F;color:#111315}
+#choh{border-bottom:1px solid var(--line);padding:8px 18px 10px;font-size:12.5px}
+#choh summary{cursor:pointer;font-weight:700;font-size:13px;list-style:none;display:flex;align-items:baseline;gap:6px}
+#choh summary::-webkit-details-marker{display:none}
+#choh summary small{font-weight:400;color:var(--muted);font-size:11.5px}
+#choh summary:after{content:"펼치기";margin-left:auto;font-size:11.5px;font-weight:500;color:var(--muted)}
+#choh[open] summary:after{content:"접기"}
+.ch-row{display:flex;gap:8px;margin-top:7px;line-height:1.55}
+.ch-sea{flex:none;width:30px;font-weight:700;color:var(--fish)}
+.ch-f{border:0;background:var(--chip);color:var(--ink);border-radius:14px;padding:1px 8px;margin:0 3px 3px 0;font:inherit;font-size:12px;cursor:pointer}
+.ch-f b{font-weight:700} .ch-f small{color:var(--muted)}
+.ch-src{color:var(--muted);font-size:11px;margin-top:4px}
+.fcard{margin:10px 14px 4px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--panel);font-size:12.5px;line-height:1.6}
+.fcard h4{margin:0 0 4px;font-size:15px}
+.fcard .fr{margin-top:6px} .fcard .fr b{display:inline-block;min-width:58px;color:var(--muted);font-weight:500}
+.fcard .now{color:var(--warn);font-weight:700}
+.fcard .fcs{display:block;width:100%;text-align:left;border:0;border-top:1px dashed var(--line);background:none;padding:6px 0;font:inherit;font-size:12.5px;color:var(--ink);cursor:pointer}
+.fcard .fcs:first-of-type{border-top:0}
 .meta{font-size:12.5px;color:var(--muted);margin-top:3px}
 .icons{font-size:12.5px;margin-top:4px}
 .memo-line{font-size:12px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -220,6 +238,7 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
       <button class="chip" data-g="opt" data-v="water">🚰 개수대</button>
       <button class="chip" data-g="opt" data-v="free">무료</button>
       <button class="chip" data-g="opt" data-v="good">👍 후기 좋음</button>
+      <button class="chip" data-g="opt" data-v="feat" id="featChip" hidden>⭐ 이번 주 추천</button>
       <button class="chip" data-g="opt" data-v="idx">🎣 오늘 낚시 좋음</button>
       <button class="chip" data-g="opt" data-v="done">✓ 가본 곳</button>
       <button class="chip" data-g="opt" data-v="todo">안 가본 곳</button>
@@ -231,6 +250,7 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
       <span id="count"></span>
     </div>
     <div class="note" id="storeNote" hidden></div>
+    <details id="choh" hidden></details>
     <div id="list"></div>
   </aside>
   <div id="map"></div>
@@ -383,7 +403,7 @@ function detail(s) {
     <div class="idxwrap"><table class="idx"><tr><th>날짜</th><th></th><th>어종</th><th>낚시</th><th>물때</th></tr>${
       s.index.rows.slice(0, 10).map(r => `<tr><td>${esc(String(r.date || "").slice(5).replace("-", "/"))}</td><td>${esc(r.noon || "")}</td><td>${esc(r.fish || "")}</td><td class="lv ${lvCls(r.index)}">${esc(lvTxt(r.index))}</td><td>${esc(r.tide || "")}</td></tr>`).join("")
     }</table></div></div>` : "";
-  el.innerHTML = `<h3>${esc(s.name)}</h3>
+  el.innerHTML = `${s.feat ? `<span class="tag tfeat">⭐ ${esc(s.feat)}</span>` : ""}<h3>${esc(s.name)}</h3>
     <div>${s.fishing ? '<span class="tag tf">낚시</span>' : ""}${s.chabak ? '<span class="tag tc">차박</span>' : ""}<span class="meta">${esc(s.region)} · ${esc(s.kind)}${d != null ? ` · <b style="color:var(--me)">${fmtKm(d)}</b>` : ""}</span></div>
     <div class="acts">
       <a class="act main" href="${esc(L_.route)}" target="_blank" rel="noopener"><span>🧭</span>길찾기</a>
@@ -671,6 +691,7 @@ function fishLine(s) {
 }
 $("fishsel").addEventListener("change", () => {
   state.fish = $("fishsel").value || null;
+  if (state.fish) $("choh").open = false;
   $("fishsel").classList.toggle("on", !!state.fish);
   if (state.fish) {
     const r = REGS.find(x => x.k.replace(/\(.*\)/, "") === state.fish), p = r && r.close && r.close.find(q => !q.re);
@@ -693,9 +714,11 @@ function visible() {
     words.every(w => s.hay.includes(w) || (mineOf(s).memo || "").toLowerCase().includes(w)) &&
     (!o.has("toilet") || hasToilet(s)) && (!o.has("water") || s.fac.water === "yes") &&
     (!o.has("free") || s.fac.free === "yes") && (!o.has("good") || s.good > s.bad) &&
+    (!o.has("feat") || s.feat) &&
     (!o.has("idx") || (s.today && (LV[s.today.index] || 0) >= 4)) &&
     (!o.has("done") || mineOf(s).visited) && (!o.has("todo") || !mineOf(s).visited));
   if (state.sort === "near" && me) out.sort((a, b) => distKm(a) - distKm(b));
+  else out.sort((a, b) => !!b.feat - !!a.feat);
   return out;
 }
 function render(redraw) {
@@ -703,13 +726,13 @@ function render(redraw) {
   if (redraw) { cluster.clearLayers(); cluster.addLayers(shown.map(s => s.marker)); }
   const done = SPOTS.filter(s => mineOf(s).visited).length;
   $("count").textContent = `${shown.length.toLocaleString()}곳` + (done ? ` · 가본 곳 ${done}` : "");
-  $("list").innerHTML = shown.slice(0, 300).map(s => `<button type="button" class="item${s.id === selId ? " on" : ""}" data-id="${s.id}">
+  $("list").innerHTML = fishCard(shown) + shown.slice(0, 300).map(s => `<button type="button" class="item${s.id === selId ? " on" : ""}" data-id="${s.id}">
     <div class="hd"><span class="name">${esc(s.name)} ${mineOf(s).visited ? '<span class="tag td">✓</span>' : ""}</span><span class="km">${fmtKm(distKm(s))}</span></div>
-    <div class="meta">${s.fishing ? '<span class="tag tf">낚시</span>' : ""}${s.chabak ? '<span class="tag tc">차박</span>' : ""}${esc(s.region)} · ${esc(s.kind)}</div>
+    <div class="meta">${s.feat ? `<span class="tag tfeat">⭐ ${esc(s.feat)}</span>` : ""}${s.fishing ? '<span class="tag tf">낚시</span>' : ""}${s.chabak ? '<span class="tag tc">차박</span>' : ""}${esc(s.region)} · ${esc(s.kind)}</div>
     <div class="icons">${hasToilet(s) ? "🚻 " : ""}${s.fac.water === "yes" ? "🚰 " : ""}${s.fac.free === "yes" ? "무료 " : ""}${s.good ? `👍${s.good} ` : ""}${s.bad ? `👎${s.bad} ` : ""}${s.today ? `<span class="lv ${lvCls(s.today.index)}">🎣 오늘 ${esc(lvTxt(s.today.index))}</span> ` : ""}${fishLine(s)}</div>
     ${mineOf(s).memo ? `<div class="memo-line">📝 ${esc(mineOf(s).memo)}</div>` : ""}</button>`).join("")
     + (shown.length > 300 ? `<p style="padding:14px 18px;color:var(--muted);font-size:13px">300곳까지 보여줘요. 검색이나 필터로 좁혀 보세요.</p>` : "")
-    || `<p style="padding:18px;color:var(--muted)">조건에 맞는 장소가 없어요.</p>`;
+    || fishCard(shown) + `<p style="padding:18px;color:var(--muted)">조건에 맞는 장소가 없어요.</p>`;
   if (redraw && shown.length && shown.length < SPOTS.length) {
     const pts = (state.sort === "near" && me ? shown.slice(0, 15) : shown).map(s => [s.lat, s.lon]);
     if (state.sort === "near" && me) pts.push([me.lat, me.lon]);
@@ -728,6 +751,43 @@ $("list").addEventListener("click", e => {
   document.querySelectorAll(".item.on").forEach(x => x.classList.remove("on")); el.classList.add("on");
   openDetail(s);
 });
+
+// ---------- 이번 주 추천 · 요즘 조황 · 어종 카드 ----------
+const CHOH = META.choh && META.choh.date && (Date.now() - new Date(META.choh.date + "T00:00:00+09:00")) < 8 * 864e5 ? META.choh : null;
+const chohOf = f => CHOH ? CHOH.seas.flatMap(s => s.top.filter(t => t.f === f).map(t => ({sea: s.sea, ...t}))) : [];
+if (SPOTS.some(s => s.feat)) $("featChip").hidden = false;
+function pickFish(f) {
+  if ([...$("fishsel").options].some(o => o.value === f)) { $("fishsel").value = f; $("fishsel").dispatchEvent(new Event("change")); }
+  else { $("choh").open = false; q.value = f; $("qx").hidden = false; render(true); if (MOBILE) setSheet("half"); }
+}
+if (CHOH) {
+  const el = $("choh"), [y, m, d] = CHOH.date.split("-").map(Number);
+  el.innerHTML = `<summary>🎣 요즘 조황 <small>${m}/${d} · ${esc(CHOH.note)}</small></summary>` +
+    CHOH.seas.map(s => `<div class="ch-row"><span class="ch-sea">${esc(s.sea)}</span><span>${s.top.length
+      ? s.top.map(t => `<button type="button" class="ch-f" data-f="${esc(t.f)}"><b>${esc(t.f)}</b> <small>${t.n}건${t.areas.length ? " · " + esc(t.areas.slice(0, 2).join(", ")) : ""}</small></button>`).join("")
+      : '<small style="color:var(--muted)">최근 소식이 적어요</small>'}</span></div>`).join("") +
+    `<div class="ch-src">유튜브 바다낚시 조행 영상에서 어종 언급을 모은 거예요. 실제 조황과 다를 수 있어요. 어종을 누르면 그 어종 장소만 보여요.</div>`;
+  el.hidden = false;
+  if (!MOBILE) el.open = true;
+  el.addEventListener("click", e => { const b = e.target.closest(".ch-f"); if (b) pickFish(b.dataset.f); });
+}
+function fishCard(shown) {
+  let f = state.fish;
+  if (!f) { const w = $("q").value.trim(); const r = REG_BY[w]; f = r ? r.k.replace(/\(.*\)/, "") : (fishCount[FISH_ALIAS[w] || w] ? (FISH_ALIAS[w] || w) : null); }
+  if (!f) return "";
+  const r = REGS.find(x => x.k.replace(/\(.*\)/, "") === f) || REG_BY[f], d = todayMD();
+  const rows = [];
+  if (r && r.size) rows.push(`<div class="fr"><b>금지체장</b>${esc(r.size)} 방류</div>`);
+  if (r && r.close) {
+    const p = r.close.find(x => !x.re && !x.no) || r.close[r.close.length - 1], now = inRange(d, p.f, p.t);
+    rows.push(`<div class="fr"><b>${esc(r.cl || "금어기")}</b>${r.note && r.close.length > 1 ? esc(r.note) : `${md(p.f)}~${md(p.t)}`}${now ? ' <span class="now">지금 금어기</span>' : ""}</div>`);
+  } else if (r) rows.push(`<div class="fr"><b>금어기</b>없음</div>`);
+  const ch = chohOf(f);
+  if (ch.length) rows.push(`<div class="fr"><b>요즘 조황</b>${ch.map(c => `${esc(c.sea)} ${c.n}건${c.areas.length ? ` (${esc(c.areas.slice(0, 2).join(", "))})` : ""}`).join(" · ")}<br><small style="color:var(--muted)">최근 조행 영상 기준이라 실제와 다를 수 있어요</small></div>`);
+  const top = SPOTS.filter(s => s.fk && s.fk.has(f)).sort((a, b) => b.videos_n - a.videos_n).slice(0, 3);
+  if (top.length) rows.push(`<div class="fr"><b>많이 다룬 곳</b></div>` + top.map((s, i) => `<button type="button" class="item fcs" data-id="${s.id}">${i + 1}. <b>${esc(s.name)}</b> <small style="color:var(--muted)">${esc(s.region)} · 영상 ${s.videos_n}개</small></button>`).join(""));
+  return `<div class="fcard"><h4>🐟 ${esc(f)}</h4>${rows.join("")}</div>`;
+}
 
 // ---------- 검색 ----------
 const q = $("q");
