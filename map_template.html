@@ -91,6 +91,17 @@ select{font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:
 .pin b{transform:rotate(45deg);font-size:13px}
 .pin.fish{background:var(--fish)} .pin.camp{background:var(--camp)} .pin.both{background:var(--both)}
 .pin.sel{outline:3px solid var(--ink);outline-offset:2px}
+.pin.feat{background:#D9F23F;color:#111315;width:36px;height:36px;border:3px solid #111315}
+.pin.feat b{font-size:16px}
+.fpin{position:relative}
+.fpin .plabel{position:absolute;left:50%;top:40px;transform:translateX(-50%);white-space:nowrap;background:#111315;color:#D9F23F;font-size:11.5px;font-weight:700;padding:2px 7px;border-radius:10px;box-shadow:var(--shadow)}
+.zlow .pl-sub{display:none}
+#weekbar{display:flex;gap:6px;margin-top:6px;overflow-x:auto;scrollbar-width:none}
+#weekbar::-webkit-scrollbar{display:none}
+#weekbar[hidden]{display:none}
+.wk{flex:none;border:0;border-radius:20px;padding:7px 12px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+.wk.feat{background:#D9F23F;color:#111315} .wk.feat.on{background:#111315;color:#D9F23F}
+.wk.ch{background:var(--ink);color:var(--panel)} .wk.ch small{font-weight:500;opacity:.85}
 .pin.done::after{content:"✓";position:absolute;right:-6px;top:-6px;transform:rotate(45deg);width:16px;height:16px;border-radius:50%;background:var(--ok);color:#fff;font-size:10px;display:grid;place-items:center;font-weight:900}
 .me{width:18px;height:18px;border-radius:50%;background:var(--me);border:3px solid #fff;box-shadow:0 0 0 6px color-mix(in srgb,var(--me) 25%,transparent)}
 .marker-cluster{background:transparent}
@@ -243,6 +254,7 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
       <button class="chip" data-g="opt" data-v="done">✓ 가본 곳</button>
       <button class="chip" data-g="opt" data-v="todo">안 가본 곳</button>
     </div>
+    <div id="weekbar" hidden></div>
   </div>
   <aside id="side">
     <button id="grab" type="button" aria-label="목록 크기 바꾸기"><i></i></button>
@@ -329,7 +341,11 @@ map.addLayer(cluster);
 
 const cls = s => s.fishing && s.chabak ? "both" : s.fishing ? "fish" : "camp";
 let selId = null;
-const pinIcon = s => L.divIcon({className: "", iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30],
+const featLayer = L.layerGroup().addTo(map);
+const zcls = () => map.getContainer().classList.toggle("zlow", map.getZoom() < 9); map.on("zoomend", zcls); zcls();
+const showOnMap = (s, cb) => { if (s.feat) { map.setView([s.lat, s.lon], Math.max(map.getZoom(), 12)); setTimeout(cb, 250); } else cluster.zoomToShowLayer(s.marker, cb); };
+const pinIcon = s => s.feat ? L.divIcon({className: "fpin", iconSize: [36, 36], iconAnchor: [18, 36], popupAnchor: [0, -36],
+  html: `<div class="pin feat${mineOf(s).visited ? " done" : ""}${s.id === selId ? " sel" : ""}"><b>⭐</b></div><span class="plabel${/캠낚/.test(s.feat) ? " pl-sub" : ""}">${esc(s.name)}</span>`}) : L.divIcon({className: "", iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30],
   html: `<div class="pin ${cls(s)}${mineOf(s).visited ? " done" : ""}${s.id === selId ? " sel" : ""}"><b>${s.fishing && s.chabak ? "★" : s.fishing ? "🎣" : "🚐"}</b></div>`});
 const hasToilet = s => ["yes", "near"].includes(s.fac.toilet);
 
@@ -438,7 +454,7 @@ function detail(s) {
 
 SPOTS.forEach((s, i) => {
   s.id = i; s.today = todayIndex(s);
-  s.marker = L.marker([s.lat, s.lon], {icon: pinIcon(s), title: s.name});
+  s.marker = L.marker([s.lat, s.lon], {icon: pinIcon(s), title: s.name, zIndexOffset: s.feat ? 1000 : 0});
   if (MOBILE) s.marker.on("click", () => openDetail(s));
   else s.marker.bindPopup(() => detail(s), {maxWidth: 340, autoPanPaddingTopLeft: [16, 16], autoPanPaddingBottomRight: [16, 16]});
   s.hay = [s.name, s.region, s.kind, s.aliases, ...(s.points || []).map(p => p.n + " " + p.d), ...s.species, ...s.view].join(" ").toLowerCase();
@@ -488,7 +504,7 @@ function select(s) {
   [prev, selId].forEach(i => i != null && SPOTS[i] && SPOTS[i].marker.setIcon(pinIcon(SPOTS[i])));
 }
 function openDetail(s) {
-  if (!MOBILE) { cluster.zoomToShowLayer(s.marker, () => s.marker.openPopup()); return; }
+  if (!MOBILE) { showOnMap(s, () => s.marker.openPopup()); return; }
   select(s); detailS = s;
   $("dbody").innerHTML = ""; $("dbody").appendChild(detail(s)); $("dbody").scrollTop = 0;
   det.style.setProperty("--doff", "0px"); det.classList.add("on"); side.classList.add("away");
@@ -523,7 +539,7 @@ $("chips").addEventListener("click", e => {
     if (state.opt.has(v)) state.opt.delete(v); else { state.opt.add(v); if (v === "done") state.opt.delete("todo"); if (v === "todo") state.opt.delete("done"); }
     document.querySelectorAll('.chip[data-g="opt"]').forEach(x => x.classList.toggle("on", state.opt.has(x.dataset.v)));
   }
-  render(true);
+  render(true); if (typeof paintWeekbar === "function") paintWeekbar();
 });
 document.querySelectorAll(".sort").forEach(b => b.addEventListener("click", () => {
   if (b.dataset.s === "near" && !me) { locate(true); return; }
@@ -723,7 +739,7 @@ function visible() {
 }
 function render(redraw) {
   const shown = visible();
-  if (redraw) { cluster.clearLayers(); cluster.addLayers(shown.map(s => s.marker)); }
+  if (redraw) { cluster.clearLayers(); featLayer.clearLayers(); cluster.addLayers(shown.filter(s => !s.feat).map(s => s.marker)); shown.filter(s => s.feat).forEach(s => featLayer.addLayer(s.marker)); }
   const done = SPOTS.filter(s => mineOf(s).visited).length;
   $("count").textContent = `${shown.length.toLocaleString()}곳` + (done ? ` · 가본 곳 ${done}` : "");
   $("list").innerHTML = fishCard(shown) + shown.slice(0, 300).map(s => `<button type="button" class="item${s.id === selId ? " on" : ""}" data-id="${s.id}">
@@ -747,7 +763,7 @@ function refreshMine() {
 $("list").addEventListener("click", e => {
   const el = e.target.closest(".item"); if (!el) return;
   const s = SPOTS[+el.dataset.id];
-  if (MOBILE) { cluster.zoomToShowLayer(s.marker, () => openDetail(s)); return; }
+  if (MOBILE) { showOnMap(s, () => openDetail(s)); return; }
   document.querySelectorAll(".item.on").forEach(x => x.classList.remove("on")); el.classList.add("on");
   openDetail(s);
 });
@@ -756,6 +772,21 @@ $("list").addEventListener("click", e => {
 const CHOH = META.choh && META.choh.date && (Date.now() - new Date(META.choh.date + "T00:00:00+09:00")) < 8 * 864e5 ? META.choh : null;
 const chohOf = f => CHOH ? CHOH.seas.flatMap(s => s.top.filter(t => t.f === f).map(t => ({sea: s.sea, ...t}))) : [];
 if (SPOTS.some(s => s.feat)) $("featChip").hidden = false;
+function paintWeekbar() {
+  const nf = SPOTS.filter(s => s.feat).length, wb = $("weekbar"), parts = [];
+  if (nf) parts.push(`<button type="button" class="wk feat${state.opt.has("feat") ? " on" : ""}" data-w="feat">⭐ 이번 주말 추천 ${nf}곳</button>`);
+  if (CHOH) { const tops = CHOH.seas.filter(s => s.top.length).map(s => `${s.sea} ${s.top[0].f}`); if (tops.length) parts.push(`<button type="button" class="wk ch" data-w="choh">🎣 요즘 조황 <small>${esc(tops.join(" · "))}</small></button>`); }
+  wb.innerHTML = parts.join(""); wb.hidden = !parts.length;
+}
+$("weekbar").addEventListener("click", e => {
+  const b = e.target.closest(".wk"); if (!b) return;
+  if (b.dataset.w === "feat") {
+    if (state.opt.has("feat")) state.opt.delete("feat"); else state.opt.add("feat");
+    document.querySelectorAll('.chip[data-g="opt"]').forEach(x => x.classList.toggle("on", state.opt.has(x.dataset.v)));
+    render(true); paintWeekbar();
+    if (MOBILE && state.opt.has("feat")) setSheet("peek");
+  } else { $("choh").open = true; if (MOBILE) setSheet("half"); else $("choh").scrollIntoView({block: "nearest"}); }
+});
 function pickFish(f) {
   if ([...$("fishsel").options].some(o => o.value === f)) { $("fishsel").value = f; $("fishsel").dispatchEvent(new Event("change")); }
   else { $("choh").open = false; q.value = f; $("qx").hidden = false; render(true); if (MOBILE) setSheet("half"); }
@@ -820,6 +851,7 @@ function locate(sortNear) {
 
 measureTop();
 paintTabs();
+paintWeekbar();
 render(true);
 setSheet("peek");
 map.fitBounds(KOREA, {paddingTopLeft: [0, MOBILE ? $("top").offsetHeight : 0], paddingBottomRight: [0, sheetShown()], animate: false});
