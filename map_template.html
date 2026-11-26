@@ -229,6 +229,19 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
   #dbody{overflow:auto;padding:2px 16px 18px;overscroll-behavior:contain}
   #dbody .pop h3{padding-right:34px}
 }
+#chips #fishsel{position:sticky;left:0;z-index:2}
+.cp-list{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.cp-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;margin:0;padding:12px 2px;cursor:pointer;font:inherit;color:var(--ink)}
+.cp-rank{flex:none;width:22px;font-weight:900;color:var(--fish);font-size:17px;text-align:center}
+.cp-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;font-size:15px;line-height:1.45}
+.cp-main small{color:var(--muted);font-size:12.5px;font-weight:400}
+.cp-main .cp-case{color:var(--camp)}
+.cp-go{flex:none;font-size:12px;color:var(--muted)}
+.pin-in h3 small{font-weight:500;font-size:12px;margin-left:4px}
+.cp-season{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0;font-size:14px}
+.cp-season>b{width:40px;color:var(--fish)}
+.cp-chip{padding:6px 11px;font-size:13.5px}
+.cp-link{border:0;background:none;color:var(--me);font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;padding:6px 0}
 </style>
 </head>
 <body>
@@ -241,14 +254,14 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
       <select id="region" aria-label="지역"><option value="">전체 지역</option></select>
     </div>
     <div class="chips" id="chips">
-      <button class="chip featc" data-g="opt" data-v="feat" id="featChip" hidden>⭐ 이번 주 추천</button>
-      <button class="chip chohc" type="button" id="chohChip" hidden>🎣 요즘 조황</button>
       <select id="fishsel" aria-label="어종으로 찾기"><option value="">🐟 어종 전체</option></select>
+      <button class="chip featc" data-g="opt" data-v="feat" id="featChip" hidden>⭐ 이번 주 추천</button>
+      <button class="chip" data-g="opt" data-v="fish">🎣 낚시</button>
+      <button class="chip" data-g="opt" data-v="camp">🚐 차박</button>
+      <button class="chip" data-g="opt" data-v="good">👍 후기 좋음</button>
       <button class="chip" data-g="opt" data-v="toilet">🚻 화장실</button>
       <button class="chip" data-g="opt" data-v="water">🚰 개수대</button>
       <button class="chip" data-g="opt" data-v="free">무료</button>
-      <button class="chip" data-g="opt" data-v="good">👍 후기 좋음</button>
-      <button class="chip" data-g="opt" data-v="idx">🎣 오늘 낚시 좋음</button>
       <button class="chip" data-g="opt" data-v="done">✓ 가본 곳</button>
       <button class="chip" data-g="opt" data-v="todo">안 가본 곳</button>
     </div>
@@ -264,8 +277,8 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
   </aside>
   <div id="map"></div>
   <nav id="tabs" aria-label="메뉴">
-      <button class="tab" data-t="fish" type="button"><span>🎣</span>낚시</button>
-      <button class="tab" data-t="camp" type="button"><span>🚐</span>차박</button>
+      <button class="tab" data-t="map" type="button"><span>🗺️</span>지도</button>
+      <button class="tab" data-t="chohp" type="button"><span>🎣</span>조황</button>
       <button class="tab" data-t="rules" type="button"><span>🚫</span>규정</button>
       <button class="tab" data-t="shop" type="button"><span>🛒</span>쇼핑</button>
       <button class="tab" data-t="report" type="button"><span>✍️</span>제보</button>
@@ -279,6 +292,9 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
   </section>
   <section id="shop" class="panel" hidden aria-label="쇼핑">
     <div class="pin-in" id="shopBody"></div>
+  </section>
+  <section id="chohp" class="panel" hidden aria-label="요즘 조황">
+    <div class="pin-in" id="chohBody"></div>
   </section>
   <section id="report" class="panel" hidden aria-label="제보">
     <div class="pin-in" id="reportBody"></div>
@@ -643,26 +659,22 @@ function rulesHTML() {
       REGS.filter(r => r.g === g).map(r => `<tr><td><b>${esc(r.k)}</b></td><td>${r.size ? esc(r.size) : "-"}</td><td>${per(r)}</td></tr>`).join("")}</tbody></table></div>`).join("")}
     <p class="cpfoot">수산자원관리법 시행령 별표 1·2와 해양수산부 고시(꽃게·고등어), 시·도 고시(낙지·참문어) 기준이에요 (해양수산부 2026.1.1 기준 안내). 길이는 전장(주둥이~꼬리지느러미 끝), 갈치는 항문장, 꽃게는 두흉갑장, 오징어는 외투장으로 재요. 규정은 바뀔 수 있으니 <a href="${REG_SRC}" target="_blank" rel="noopener">해양수산부 원문</a>도 확인하세요.</p>`;
 }
-// ---------- 하단 탭: 낚시 / 차박 / 규정 / 쇼핑 / 제보 ----------
+// ---------- 하단 탭: 지도 / 조황 / 규정 / 쇼핑 / 제보 ----------
 let panel = null;
 function paintTabs() {
-  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", panel ? b.dataset.t === panel : b.dataset.t === state.layer));
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", panel ? b.dataset.t === panel : b.dataset.t === "map"));
 }
 function showPanel(p) {
   panel = p;
-  $("shop").hidden = p !== "shop"; $("report").hidden = p !== "report"; $("rules").hidden = p !== "rules";
+  $("shop").hidden = p !== "shop"; $("report").hidden = p !== "report"; $("rules").hidden = p !== "rules"; $("chohp").hidden = p !== "chohp";
   if (p) { if (detailOn) closeDetail(); $(p).scrollTop = 0; }
   paintTabs();
 }
 $("tabs").addEventListener("click", e => {
   const b = e.target.closest(".tab"); if (!b) return;
   const t = b.dataset.t;
-  if (t === "shop" || t === "report" || t === "rules") { showPanel(panel === t ? null : t); return; }
-  if (panel) { showPanel(null); if (state.layer === t) return; }
-  state.layer = state.layer === t ? "all" : t;
-  if (state.layer === "all") toast("낚시·차박 전체를 보여줘요");
-  paintTabs(); render(true);
-  if (MOBILE && detailOn) closeDetail();
+  if (t === "map") { showPanel(null); return; }
+  showPanel(panel === t ? null : t);
 });
 function shopHTML() {
   const fish = Object.keys(CP).filter(k => !/차박|캠핑/.test(k) && !SAFE.includes(k)), camp = Object.keys(CP).filter(k => /차박|캠핑/.test(k));
@@ -721,7 +733,7 @@ function visible() {
   const q = $("q").value.trim().toLowerCase(), reg = $("region").value, o = state.opt;
   const words = q.split(/\s+/).filter(Boolean);
   const out = SPOTS.filter(s =>
-    (state.layer === "all" || (state.layer === "fish" ? s.fishing : s.chabak)) &&
+    (!(o.has("fish") || o.has("camp")) || (o.has("fish") && s.fishing) || (o.has("camp") && s.chabak)) &&
     (!reg || s.region.startsWith(reg)) &&
     (!state.fish || (s.fk && s.fk.has(state.fish))) &&
     words.every(w => s.hay.includes(w) || (mineOf(s).memo || "").toLowerCase().includes(w)) &&
@@ -769,25 +781,37 @@ $("list").addEventListener("click", e => {
 const CHOH = META.choh && META.choh.date && (Date.now() - new Date(META.choh.date + "T00:00:00+09:00")) < 8 * 864e5 ? META.choh : null;
 const chohOf = f => CHOH ? CHOH.seas.flatMap(s => s.top.filter(t => t.f === f).map(t => ({sea: s.sea, ...t}))) : [];
 if (SPOTS.some(s => s.feat)) $("featChip").hidden = false;
-if (CHOH) {
-  $("chohChip").hidden = false;
-  $("chohChip").addEventListener("click", e => { e.stopPropagation(); const o = !$("choh").open || (MOBILE && sheetState === "peek"); $("choh").open = o; if (o) { if (MOBILE) setSheet("half"); else $("choh").scrollIntoView({block: "nearest"}); } });
-}
 function pickFish(f) {
+  showPanel(null);
   if ([...$("fishsel").options].some(o => o.value === f)) { $("fishsel").value = f; $("fishsel").dispatchEvent(new Event("change")); }
   else { $("choh").open = false; q.value = f; $("qx").hidden = false; render(true); if (MOBILE) setSheet("half"); }
 }
-if (CHOH) {
-  const el = $("choh"), [y, m, d] = CHOH.date.split("-").map(Number);
-  el.innerHTML = `<summary>🎣 요즘 조황 <small>${m}/${d} · ${esc(CHOH.note)}</small></summary>` +
-    CHOH.seas.map(s => `<div class="ch-row"><span class="ch-sea">${esc(s.sea)}</span><span>${s.top.length
-      ? s.top.map(t => `<button type="button" class="ch-f" data-f="${esc(t.f)}"><b>${esc(t.f)}</b> <small>${t.n}건${t.areas.length ? " · " + esc(t.areas.slice(0, 2).join(", ")) : ""}</small></button>`).join("")
-      : '<small style="color:var(--muted)">최근 소식이 적어요</small>'}</span></div>`).join("") +
-    `<div class="ch-src">유튜브 바다낚시 조행 영상에서 어종 언급을 모은 거예요. 실제 조황과 다를 수 있어요. 어종을 누르면 그 어종 장소만 보여요.</div>`;
-  el.hidden = false;
-  if (!MOBILE) el.open = true;
-  el.addEventListener("click", e => { const b = e.target.closest(".ch-f"); if (b) pickFish(b.dataset.f); });
+const md2 = s => { const [, m, d] = String(s).split("-").map(Number); return `${m}/${d}`; };
+function chohHTML() {
+  const out = [];
+  if (CHOH) {
+    out.push(`<h2>요즘 조황</h2><p>${md2(CHOH.date)} 기준 · ${esc(CHOH.note)}. 유튜브 바다낚시 조행 영상에서 뽑은 기록이라 실제와 다를 수 있어요. 어종을 누르면 지도에서 그 어종이 잡히는 곳만 보여줘요.</p>`);
+    CHOH.seas.forEach(s => {
+      out.push(`<h3>${esc(s.sea)} <small>소식 ${s.n}건</small></h3>` + (s.top.length ? `<div class="cp-list">${s.top.map((t, i) => `<button type="button" class="cp-row ch-f" data-f="${esc(t.f)}"><span class="cp-rank">${i + 1}</span><span class="cp-main"><b>${esc(t.f)} <small>언급 ${t.n}건</small></b>${t.areas.length ? `<small>${esc(t.areas.join(" · "))}</small>` : ""}${t.cases && t.cases.length ? `<small class="cp-case">🔥 호황 ${t.cases.map(c => `${md2(c.date)} ${esc(c.area)}${c.how ? " " + esc(c.how) : ""}`).join(" / ")}</small>` : ""}</span><span class="cp-go">지도 ›</span></button>`).join("")}</div>` : `<p>최근 소식이 적어요.</p>`));
+    });
+  } else out.push(`<h2>요즘 조황</h2><p>최근 조황 소식을 아직 불러오지 못했어요.</p>`);
+  const good = SPOTS.filter(s => s.today && (LV[s.today.index] || 0) >= 4)
+    .sort((a, b) => (LV[b.today.index] || 0) - (LV[a.today.index] || 0) || b.videos_n - a.videos_n).slice(0, 8);
+  out.push(`<h3>오늘 낚시 여건 좋은 곳</h3>` + (good.length ? `<div class="cp-list">${good.map(s => `<button type="button" class="cp-row cp-spot" data-id="${s.id}"><span class="cp-main"><b>${esc(s.name)} <span class="lv ${lvCls(s.today.index)}">${esc(lvTxt(s.today.index))}</span></b><small>${esc(s.region)}${s.today.fish ? " · " + esc(s.today.fish) : ""}${s.today.tide ? " · " + esc(s.today.tide) : ""}</small></span><span class="cp-go">보기 ›</span></button>`).join("")}</div><p class="cpfoot">물때·파도·바람·수온을 합친 바다낚시지수(국립해양조사원) 기준이에요.</p>` : `<p>오늘은 낚시 여건이 좋은 곳이 적어요.</p>`));
+  if (META.season && META.season.seas && META.season.seas.length) {
+    out.push(`<h3>${META.season.month}월에 많이 잡힌 어종</h3>` + META.season.seas.map(s => `<div class="cp-season"><b>${esc(s.sea)}</b>${s.top.map(t => `<button type="button" class="ch-f cp-chip" data-f="${esc(t.f)}">${esc(t.f)}${t.hot ? ` <small>호황 ${esc(t.rate)}</small>` : ""}</button>`).join("")}</div>`).join("") + `<p class="cpfoot">이번 달 조행 영상에서 언급이 많은 순서예요. 호황 비율은 언급 중 '잘 잡혔다'는 기록의 비율이에요.</p>`);
+  }
+  const d = todayMD(), now = REGS.filter(r => !r.soft && r.close && r.close.some(p => !p.re && inRange(d, p.f, p.t)));
+  out.push(`<h3>오늘 금어기인 어종</h3><p class="rg-today">${now.length ? now.map(r => `<span class="rg-now">${esc(r.k)}</span>`).join(" ") : "오늘은 금어기인 주요 어종이 없어요."}</p><button type="button" class="cp-link" id="toRules">금지체장·금어기 전체 보기 ›</button>`);
+  return out.join("");
 }
+$("chohBody").innerHTML = chohHTML();
+$("chohBody").addEventListener("click", e => {
+  const f = e.target.closest(".ch-f"); if (f) { pickFish(f.dataset.f); return; }
+  const sp = e.target.closest(".cp-spot");
+  if (sp) { const s = SPOTS[+sp.dataset.id]; showPanel(null); if (MOBILE) showOnMap(s, () => openDetail(s)); else { map.setView([s.lat, s.lon], 13); openDetail(s); } return; }
+  if (e.target.closest("#toRules")) showPanel("rules");
+});
 function fishCard(shown) {
   let f = state.fish;
   if (!f) { const w = $("q").value.trim(); const r = REG_BY[w]; f = r ? r.k.replace(/\(.*\)/, "") : (fishCount[FISH_ALIAS[w] || w] ? (FISH_ALIAS[w] || w) : null); }

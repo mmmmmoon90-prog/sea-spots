@@ -340,6 +340,7 @@ def main():
         import extras
         meta["featured"] = extras.apply_featured(spots, DATA)
         meta["choh"] = extras.load_choh(DATA)
+        meta["season"] = extras.load_season(DATA)
     except Exception as e:
         print("이번 주 추천·조황 붙이기 실패:", e)
     with open(os.path.join(HERE, "map_template.html"), encoding="utf-8") as f:

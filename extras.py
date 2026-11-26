@@ -11,6 +11,8 @@
    ttogan-map이 비공개라 Actions 비밀값 CHOH_TOKEN(ttogan-map 읽기 전용 토큰)이 있어야 매일 새로 읽음.
    유튜버·채널·선박 이름, 장비명, 영상 링크는 넣지 않음.
 """
+import csv
+import io
 import json
 import os
 import re
@@ -64,6 +66,16 @@ def parse_choh(md):
         return None
     seas, cur = [], None
     for line in md.splitlines():
+        m = re.match(r"\s+-\s*호황 사례:\s*(.*?)\s*\((\d{4}-\d{2}-\d{2})\)", line)
+        if m:
+            if cur is not None and cur["top"]:
+                txt = m.group(1)
+                how = next((w for w in ("선상", "워킹", "갯바위", "방파제", "에기", "루어") if w in txt), "")
+                head = re.split(r"\s(?:선상|워킹|갯바위|방파제|루어|에기)\b", txt)[0]
+                area = _area(head)
+                if area and "미상" not in area:
+                    cur["top"][-1].setdefault("cases", []).append({"date": m.group(2), "area": area, "how": how})
+            continue
         m = re.match(r"##\s*(\S+)\s*\((\d+)건\)", line)
         if m:
             cur = {"sea": m.group(1), "n": int(m.group(2)), "top": []} if m.group(1) in SEAS else None
@@ -79,21 +91,26 @@ def parse_choh(md):
                     areas.append(a)
             cur["top"].append({"f": m.group(1).strip(), "n": int(m.group(2)), "score": int(m.group(3)), "areas": areas[:3]})
     for s in seas:
-        s["top"] = [t for t in s["top"] if t["n"] >= 2 and t["score"] > 0][:4]
+        s["top"] = [t for t in s["top"] if t["score"] > 0 and (t["n"] >= 2 or t.get("cases"))][:6]
     return {"date": head.group(1), "note": head.group(2), "seas": seas}
+
+
+def _fetch(name):
+    """ttogan-map의 data/ipjil/<name>을 읽음. 비공개라 CHOH_TOKEN이 있으면 GitHub API로."""
+    token = os.environ.get("CHOH_TOKEN", "")
+    if token:
+        req = urllib.request.Request(CHOH_API.replace("latest.md", name), headers={
+            "Authorization": "Bearer " + token, "Accept": "application/vnd.github.raw"})
+    else:
+        req = urllib.request.Request(CHOH_URL.replace("latest.md", name) + "?t=" + str(int(time.time())))
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return r.read().decode("utf-8")
 
 
 def load_choh(data_dir):
     cache = os.path.join(data_dir, "choh.json")
     try:
-        token = os.environ.get("CHOH_TOKEN", "")
-        if token:  # ttogan-map이 비공개라 읽기 전용 토큰으로 GitHub API 사용
-            req = urllib.request.Request(CHOH_API, headers={
-                "Authorization": "Bearer " + token, "Accept": "application/vnd.github.raw"})
-        else:
-            req = urllib.request.Request(CHOH_URL + "?t=" + str(int(time.time())))
-        with urllib.request.urlopen(req, timeout=20) as r:
-            data = parse_choh(r.read().decode("utf-8"))
+        data = parse_choh(_fetch("latest.md"))
         if data:
             with open(cache, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False)
@@ -101,3 +118,31 @@ def load_choh(data_dir):
     except Exception as e:
         print("조황 리포트를 못 읽어 지난 값을 씀:", e)
     return _load(cache, None)
+
+
+def parse_season(text, month):
+    """season.csv(월,바다,어종,언급 수,호황 수,호황 비율)에서 이번 달 바다별 상위 어종."""
+    rows = [r for r in csv.reader(io.StringIO(text))][1:]
+    seas = []
+    for sea in SEAS:
+        top = [r for r in rows if len(r) >= 6 and r[0].strip() == str(month) and r[1].strip() == sea]
+        top.sort(key=lambda r: (-int(r[3] or 0), -int(r[4] or 0)))
+        if top:
+            seas.append({"sea": sea, "top": [{"f": r[2].strip(), "n": int(r[3] or 0), "hot": int(r[4] or 0),
+                                              "rate": r[5].strip()} for r in top[:5]]})
+    return {"month": month, "seas": seas} if seas else None
+
+
+def load_season(data_dir):
+    cache = os.path.join(data_dir, "season.json")
+    month = int(time.strftime("%m", time.gmtime(time.time() + 9 * 3600)))
+    try:
+        data = parse_season(_fetch("season.csv"), month)
+        if data:
+            with open(cache, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False)
+            return data
+    except Exception as e:
+        print("시즌 달력을 못 읽어 지난 값을 씀:", e)
+    old = _load(cache, None)
+    return old if old and old.get("month") == month else None
