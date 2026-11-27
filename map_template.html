@@ -150,6 +150,7 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
 .rk-b button:disabled{opacity:.5}
 .rk-msg{font-size:13px;color:var(--ok);margin-top:8px;min-height:1em}
 #rankBox:empty{display:none}
+#repFab{position:fixed;right:18px;bottom:24px;z-index:6;width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--ink);box-shadow:var(--shadow);cursor:pointer;display:grid;place-items:center;padding:0}
 .rk-fish{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .rk-fish button{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--ok);color:var(--ok);background:transparent;border-radius:999px;padding:6px 12px;cursor:pointer}
 .rk-fish button:disabled{opacity:.5}
@@ -238,6 +239,7 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
     border-radius:18px 18px 0 0;box-shadow:var(--shadow);transform:translateY(var(--off,0px));
     transition:transform .3s cubic-bezier(.2,.8,.2,1);will-change:transform;z-index:5}
   #side.drag{transition:none}
+  #repFab{position:absolute;right:12px;top:-60px;bottom:auto;width:48px;height:48px}
   #side.away{transform:translateY(calc(100% + var(--tabh)))}
   #grab{display:flex;justify-content:center;padding:9px 0 3px;touch-action:none;cursor:grab;border:0;background:none;width:100%}
   #grab i{display:block;width:44px;height:5px;border-radius:5px;background:var(--muted);opacity:.45}
@@ -322,6 +324,7 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
     <div class="note" id="storeNote" hidden></div>
     <details id="choh" hidden></details>
     <div id="list"></div>
+    <button id="repFab" type="button" aria-label="장소 제보하기" title="장소 제보하기"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
   </aside>
   <div id="map"></div>
   <nav id="tabs" aria-label="메뉴">
@@ -343,6 +346,9 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
   </section>
   <section id="chohp" class="panel" hidden aria-label="요즘 조황">
     <div class="pin-in" id="chohBody"></div>
+  </section>
+  <section id="repp" class="panel" hidden aria-label="장소 제보">
+    <div class="pin-in" id="reppBody"></div>
   </section>
   <section id="report" class="panel" hidden aria-label="지역 대항 랭킹">
     <div class="pin-in" id="reportBody"></div>
@@ -726,18 +732,19 @@ function rulesHTML() {
       REGS.filter(r => r.g === g).map(r => `<tr><td><b>${esc(r.k)}</b></td><td>${r.size ? esc(r.size) : "-"}</td><td>${per(r)}</td></tr>`).join("")}</tbody></table></div>`).join("")}
     <p class="cpfoot">수산자원관리법 시행령 별표 1·2와 해양수산부 고시(꽃게·고등어), 시·도 고시(낙지·참문어) 기준이에요 (해양수산부 2026.1.1 기준 안내). 길이는 전장(주둥이~꼬리지느러미 끝), 갈치는 항문장, 꽃게는 두흉갑장, 오징어는 외투장으로 재요. 규정은 바뀔 수 있으니 <a href="${REG_SRC}" target="_blank" rel="noopener">해양수산부 원문</a>도 확인하세요.</p>`;
 }
-// ---------- 하단 탭: 지도 / 조황 / 랭킹 / 규정 / 쇼핑 ----------
+// ---------- 하단 탭: 지도 / 조황 / 랭킹 / 규정 / 쇼핑 (+ 제보 버튼) ----------
 let panel = null;
 function paintTabs() {
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", panel ? b.dataset.t === panel : b.dataset.t === "map"));
 }
 function showPanel(p) {
   panel = p;
-  $("shop").hidden = p !== "shop"; $("report").hidden = p !== "report"; $("rules").hidden = p !== "rules"; $("chohp").hidden = p !== "chohp";
+  $("shop").hidden = p !== "shop"; $("report").hidden = p !== "report"; $("rules").hidden = p !== "rules"; $("chohp").hidden = p !== "chohp"; $("repp").hidden = p !== "repp";
   if (p) { if (detailOn) closeDetail(); $(p).scrollTop = 0; }
   if (p === "report") loadRank(true).then(renderRank);
   paintTabs();
 }
+$("repFab").onclick = () => { track("제보 버튼"); showPanel(panel === "repp" ? null : "repp"); };
 $("tabs").addEventListener("click", e => {
   const b = e.target.closest(".tab"); if (!b) return;
   const t = b.dataset.t;
@@ -757,14 +764,17 @@ function shopHTML() {
 }
 const REPORT_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdNCrFpTGOYYuU1_5tdGRjcajaDhQc8o0VIVnAVE_GBD6_8ZQ/viewform";
 const REPORT_TPL = "장소 이름:\n위치(주소나 근처 지명):\n낚시 / 차박 / 둘 다:\n화장실·개수대 있는지:\n잡힌 어종이나 차박 팁:\n주의할 점(금지구역 등):";
-function reportHTML() {
-  return `<div id="rankBox"></div><h2 style="margin-top:34px">장소 제보하기</h2><p>지도에 없는 포인트, 바뀐 정보(낚시 금지·야영 금지·화장실 철거 등)를 알려주세요. 확인한 뒤 지도에 반영할게요.</p>
+function repHTML() {
+  return `<h2>장소 제보하기</h2><p>지도에 없는 포인트, 바뀐 정보(낚시 금지·야영 금지·화장실 철거 등)를 알려주세요. 확인한 뒤 지도에 반영할게요.</p>
     ${REPORT_URL ? `<a class="rep-btn" href="${esc(REPORT_URL)}" target="_blank" rel="noopener">✍️ 제보 양식 열기 (1분)</a>`
       : `<p style="margin-top:12px">제보 양식은 곧 열려요. 지금은 아래 내용을 복사해 두었다가 양식이 열리면 붙여넣어 주세요.</p>
     <div class="rep-tpl" id="repTpl">${esc(REPORT_TPL)}</div>
     <button class="rep-btn ghost" type="button" id="repCopy">양식 복사하기</button>`}
-    <ol class="rep-steps"><li>정확한 위치가 제일 중요해요. 카카오맵·네이버지도 장소 링크도 좋아요.</li><li>개인 사유지·통제구역은 받지 않아요.</li><li>로그인 없이 보낼 수 있고, 이메일 같은 개인정보는 받지 않아요.</li></ol>
-    <h2 style="margin-top:30px">업데이트 소식</h2>
+    <ol class="rep-steps"><li>정확한 위치가 제일 중요해요. 카카오맵·네이버지도 장소 링크도 좋아요.</li><li>개인 사유지·통제구역은 받지 않아요.</li><li>로그인 없이 보낼 수 있고, 이메일 같은 개인정보는 받지 않아요.</li></ol>`;
+}
+function reportHTML() {
+  return `<div id="rankBox"></div>
+    <h2 style="margin-top:34px">업데이트 소식</h2>
     <ul class="news">${NEWS.map(n => `<li><span>${esc(n.d)}</span><div><b>${esc(n.t)}</b>${n.s ? `<small>${esc(n.s)}</small>` : ""}</div></li>`).join("")}</ul>
     ${SUPPORT.kakao || SUPPORT.toss ? `<h2 style="margin-top:30px">만든 사람 응원하기</h2><p>혼자 만들고 매일 데이터를 갱신하고 있어요. 지도가 도움이 됐다면 커피 한 잔으로 응원해 주세요. 서버·데이터 비용에 보태요.</p>
     <div class="sup">${SUPPORT.kakao ? `<a class="rep-btn sup-k" href="${esc(SUPPORT.kakao)}" target="_blank" rel="noopener">카카오페이로 응원</a>` : ""}${SUPPORT.toss ? `<a class="rep-btn sup-t" href="${esc(SUPPORT.toss)}" target="_blank" rel="noopener">토스로 응원</a>` : ""}</div>` : ""}`;
@@ -777,6 +787,7 @@ const NEWS = [
 ];
 const SUPPORT = {kakao: "https://qr.kakaopay.com/Ej9JBiDHg", toss: ""};
 $("shopBody").innerHTML = shopHTML();
+$("reppBody").innerHTML = repHTML();
 $("reportBody").innerHTML = reportHTML();
 $("rulesBody").innerHTML = rulesHTML();
 // ---------- 어종으로 찾기 ----------
