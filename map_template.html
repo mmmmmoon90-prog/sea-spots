@@ -257,7 +257,8 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
 .news li>span{flex:none;width:44px;font-weight:700;color:var(--fish);font-size:13px;padding-top:2px}
 .news li div{display:flex;flex-direction:column;gap:3px;font-size:14.5px}
 .news small{color:var(--muted);font-size:12.5px;line-height:1.5}
-.sup{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sup{display:flex;gap:8px}
+.sup .rep-btn{flex:1}
 .sup .rep-btn{margin-top:12px}
 .sup-k{background:#FEE500!important;color:#191919!important}
 .sup-t{background:#0064FF!important;color:#fff!important}
@@ -737,7 +738,7 @@ const NEWS = [
   {d: "11.27", t: "필터를 다시 정리했어요", s: "낚시·차박은 필터로 옮겼고, 어종 전체는 맨 앞에 고정했어요."},
   {d: "11.27", t: "⭐ 이번 주 추천", s: "이번 주말 바다별 추천 포인트와 캠낚 스팟에 별 표시가 붙어요."}
 ];
-const SUPPORT = {kakao: "", toss: ""};
+const SUPPORT = {kakao: "https://qr.kakaopay.com/Ej9JBiDHg", toss: ""};
 $("shopBody").innerHTML = shopHTML();
 $("reportBody").innerHTML = reportHTML();
 $("rulesBody").innerHTML = rulesHTML();
