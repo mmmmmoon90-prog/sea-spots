@@ -9,16 +9,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: workers.dev 주소 준비
+      - name: 계정·workers.dev 주소 준비
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_ACC_IN: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          API="https://api.cloudflare.com/client/v4/accounts/$CF_ACC/workers/subdomain"
-          SUB=$(curl -s -H "Authorization: Bearer $CF_TOKEN" "$API" | jq -r '.result.subdomain // empty')
+          H="Authorization: Bearer $CF_TOKEN"
+          echo "토큰 확인:"; curl -s -H "$H" https://api.cloudflare.com/client/v4/user/tokens/verify | jq -c '.success, .result.status, .errors'
+          ACCS=$(curl -s -H "$H" "https://api.cloudflare.com/client/v4/accounts?per_page=50")
+          echo "토큰으로 보이는 계정 수: $(echo "$ACCS" | jq '.result | length')"
+          ACC=$(echo "$ACCS" | jq -r --arg a "$(echo -n "$CF_ACC_IN" | tr -d '[:space:]')" '[.result[].id] | if index($a) then $a else .[0] end // empty')
+          if [ -z "$ACC" ]; then ACC=$(echo -n "$CF_ACC_IN" | tr -d '[:space:]'); fi
+          if [ "$ACC" = "$(echo -n "$CF_ACC_IN" | tr -d '[:space:]')" ]; then echo "Account ID 시크릿 일치"; else echo "Account ID 시크릿이 달라서 토큰의 계정을 사용"; fi
+          echo "::add-mask::$ACC"
+          echo "CF_ACC=$ACC" >> $GITHUB_ENV
+          API="https://api.cloudflare.com/client/v4/accounts/$ACC/workers/subdomain"
+          SUB=$(curl -s -H "$H" "$API" | jq -r '.result.subdomain // empty')
           if [ -z "$SUB" ]; then
             for name in seaspots seaspots-map fishingmap-kr seaspots-$RANDOM; do
-              R=$(curl -s -X PUT -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" --data "{\"subdomain\":\"$name\"}" "$API")
+              R=$(curl -s -X PUT -H "$H" -H "Content-Type: application/json" --data "{\"subdomain\":\"$name\"}" "$API")
               echo "$R" | jq -c '.success, .errors'
               if [ "$(echo "$R" | jq -r '.success')" = "true" ]; then SUB=$name; break; fi
             done
@@ -28,12 +37,13 @@ jobs:
       - name: 배포
         uses: cloudflare/wrangler-action@v3
         with:
+          wranglerVersion: "4.20.0"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          accountId: ${{ env.CF_ACC }}
           workingDirectory: worker
       - name: 확인
         run: |
-          sleep 8
+          sleep 10
           echo "URL: $RANK_URL"
           curl -s "$RANK_URL/" ; echo
           curl -s "$RANK_URL/rank" | head -c 400 ; echo
