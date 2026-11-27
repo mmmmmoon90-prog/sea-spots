@@ -150,6 +150,11 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
 .rk-b button:disabled{opacity:.5}
 .rk-msg{font-size:13px;color:var(--ok);margin-top:8px;min-height:1em}
 #rankBox:empty{display:none}
+.rk-fish{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.rk-fish button{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--ok);color:var(--ok);background:transparent;border-radius:999px;padding:6px 12px;cursor:pointer}
+.rk-fish button:disabled{opacity:.5}
+.rk-catch{display:flex;flex-wrap:wrap;gap:6px}
+.rk-catch span{font-size:13px;border:1px solid var(--line);border-radius:999px;padding:5px 11px}
 #rankBox{margin-bottom:22px}
 .rk-tab{display:flex;gap:6px;margin:12px 0 10px}
 .rk-tab button{font:inherit;font-size:13px;font-weight:700;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:6px 14px;cursor:pointer}
@@ -324,7 +329,7 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
       <button class="tab" data-t="chohp" type="button"><span>🎣</span>조황</button>
       <button class="tab" data-t="rules" type="button"><span>🚫</span>규정</button>
       <button class="tab" data-t="shop" type="button"><span>🛒</span>쇼핑</button>
-      <button class="tab" data-t="report" type="button"><span>✍️</span>제보</button>
+      <button class="tab" data-t="report" type="button"><span>🏆</span>랭킹</button>
     </nav>
   <section id="detail" aria-label="장소 정보">
     <div id="dhead"><i></i><button id="dclose" type="button" aria-label="닫기">✕</button></div>
@@ -339,7 +344,7 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
   <section id="chohp" class="panel" hidden aria-label="요즘 조황">
     <div class="pin-in" id="chohBody"></div>
   </section>
-  <section id="report" class="panel" hidden aria-label="제보">
+  <section id="report" class="panel" hidden aria-label="지역 대항 랭킹">
     <div class="pin-in" id="reportBody"></div>
   </section>
   <div id="toast" role="status"></div>
@@ -506,7 +511,7 @@ function detail(s) {
     ${s.address ? `<div class="sec addr"><span>${esc(s.address)}</span><button type="button" data-copy>복사</button></div>` : ""}
     ${gear(s)}
     <p class="srcnote">장소 정보는 유튜브 낚시·차박 영상과 댓글에서 언급된 내용을 요약한 거예요. 현장 상황과 다를 수 있으니 출발 전에 확인하세요.</p>
-    ${RANK_API && sidoOf(s) ? `<div class="rk"><b>지역 대항전</b><small>${esc(sidoOf(s))} 팀에 점수를 보태요 · 하루 한 번씩</small><div class="rk-b"><button type="button" data-rk="visit">🚩 오늘 다녀왔어요 <small>+1</small></button><button type="button" data-rk="catch">🎣 오늘 잡았어요 <small>+3</small></button></div><div class="rk-msg" role="status"></div></div>` : ""}
+    ${RANK_API && sidoOf(s) ? `<div class="rk"><b>지역 대항전</b><small>${esc(sidoOf(s))} 팀에 점수를 보태요 · 현장 2km 안에서만</small><div class="rk-b"><button type="button" data-rk="visit">🚩 오늘 다녀왔어요 <small>+1</small></button><button type="button" data-rk="catch">🎣 오늘 잡았어요 <small>+3</small></button></div><div class="rk-fish" hidden>${[...(s.species || []).slice(0, 8), "기타"].map(f => `<button type="button" data-fish="${esc(f)}">${esc(f)}</button>`).join("")}</div><div class="rk-msg" role="status"></div></div>` : ""}
     <div class="mine"><button class="visit" type="button"></button>
       <textarea placeholder="메모·후기 (예: 우럭 5마리, 화장실 깨끗함, 주말엔 자리 없음)" maxlength="1000"></textarea><div class="saved"></div></div>`;
   el.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => copyText(s.address || s.name));
@@ -517,7 +522,12 @@ function detail(s) {
   let timer; const flush = () => { clearTimeout(timer); if (ta.value !== (mineOf(s).memo || "")) saveMine(s, {memo: ta.value}, st); };
   ta.oninput = () => { st.textContent = ""; clearTimeout(timer); timer = setTimeout(flush, 1200); };
   ta.onblur = flush;
-  el.querySelectorAll("[data-rk]").forEach(b => b.onclick = () => rankCheckin(s, b.dataset.rk, el.querySelector(".rk-msg"), b));
+  const rkMsg = el.querySelector(".rk-msg"), rkFish = el.querySelector(".rk-fish");
+  el.querySelectorAll("[data-rk]").forEach(b => b.onclick = () => {
+    if (b.dataset.rk === "catch") { rkFish.hidden = !rkFish.hidden; rkMsg.textContent = rkFish.hidden ? "" : "무슨 어종을 잡았나요?"; return; }
+    rankCheckin(s, "visit", rkMsg, b);
+  });
+  el.querySelectorAll("[data-fish]").forEach(b => b.onclick = () => rankCheckin(s, "catch", rkMsg, b, b.dataset.fish, rkFish));
   return el;
 }
 
@@ -725,6 +735,7 @@ function showPanel(p) {
   panel = p;
   $("shop").hidden = p !== "shop"; $("report").hidden = p !== "report"; $("rules").hidden = p !== "rules"; $("chohp").hidden = p !== "chohp";
   if (p) { if (detailOn) closeDetail(); $(p).scrollTop = 0; }
+  if (p === "report") loadRank(true).then(renderRank);
   paintTabs();
 }
 $("tabs").addEventListener("click", e => {
@@ -747,7 +758,7 @@ function shopHTML() {
 const REPORT_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdNCrFpTGOYYuU1_5tdGRjcajaDhQc8o0VIVnAVE_GBD6_8ZQ/viewform";
 const REPORT_TPL = "장소 이름:\n위치(주소나 근처 지명):\n낚시 / 차박 / 둘 다:\n화장실·개수대 있는지:\n잡힌 어종이나 차박 팁:\n주의할 점(금지구역 등):";
 function reportHTML() {
-  return `<h2>장소 제보하기</h2><p>지도에 없는 포인트, 바뀐 정보(낚시 금지·야영 금지·화장실 철거 등)를 알려주세요. 확인한 뒤 지도에 반영할게요.</p>
+  return `<div id="rankBox"></div><h2 style="margin-top:34px">장소 제보하기</h2><p>지도에 없는 포인트, 바뀐 정보(낚시 금지·야영 금지·화장실 철거 등)를 알려주세요. 확인한 뒤 지도에 반영할게요.</p>
     ${REPORT_URL ? `<a class="rep-btn" href="${esc(REPORT_URL)}" target="_blank" rel="noopener">✍️ 제보 양식 열기 (1분)</a>`
       : `<p style="margin-top:12px">제보 양식은 곧 열려요. 지금은 아래 내용을 복사해 두었다가 양식이 열리면 붙여넣어 주세요.</p>
     <div class="rep-tpl" id="repTpl">${esc(REPORT_TPL)}</div>
@@ -759,7 +770,7 @@ function reportHTML() {
     <div class="sup">${SUPPORT.kakao ? `<a class="rep-btn sup-k" href="${esc(SUPPORT.kakao)}" target="_blank" rel="noopener">카카오페이로 응원</a>` : ""}${SUPPORT.toss ? `<a class="rep-btn sup-t" href="${esc(SUPPORT.toss)}" target="_blank" rel="noopener">토스로 응원</a>` : ""}</div>` : ""}`;
 }
 const NEWS = [
-  {d: "11.27", t: "🏆 지역 대항 랭킹 시작", s: "장소에서 '오늘 다녀왔어요·잡았어요'를 누르면 우리 지역 점수가 올라가요. 순위는 조황 탭에서 봐요."},
+  {d: "11.27", t: "🏆 지역 대항 랭킹 시작", s: "현장에서 장소를 열고 '오늘 다녀왔어요·잡았어요'를 누르면 우리 지역 점수가 올라가요. 하단 랭킹 탭에서 봐요."},
   {d: "11.27", t: "조황 탭이 생겼어요", s: "바다별로 요즘 잡히는 어종, 호황 소식, 오늘 낚시 여건 좋은 곳을 한 번에 봐요."},
   {d: "11.27", t: "필터를 다시 정리했어요", s: "낚시·차박은 필터로 옮겼고, 어종 전체는 맨 앞에 고정했어요."},
   {d: "11.27", t: "⭐ 이번 주 추천", s: "이번 주말 바다별 추천 포인트와 캠낚 스팟에 별 표시가 붙어요."}
@@ -857,7 +868,7 @@ function pickFish(f) {
 }
 const md2 = s => { const [, m, d] = String(s).split("-").map(Number); return `${m}/${d}`; };
 function chohHTML() {
-  const out = ['<div id="rankBox"></div>'];
+  const out = [];
   if (CHOH) {
     out.push(`<h2>요즘 조황</h2><p>${md2(CHOH.date)} 기준 · ${esc(CHOH.note)}. 유튜브 바다낚시 조행 영상에서 뽑은 기록이라 실제와 다를 수 있어요. 어종을 누르면 지도에서 그 어종이 잡히는 곳만 보여줘요.</p>`);
     CHOH.seas.forEach(s => {
@@ -884,12 +895,36 @@ async function loadRank(force) {
   try { const r = await fetch(RANK_API + "/rank", {cache: "no-store"}); RANK = await r.json(); } catch (e) { RANK = null; }
   return RANK;
 }
-async function rankCheckin(s, kind, msg, btn) {
-  btn.disabled = true; msg.textContent = "보내는 중…";
+const RK_KM = 2;
+function rkPos() {
+  return new Promise((res, rej) => {
+    if (!navigator.geolocation) return rej(new Error("nogeo"));
+    navigator.geolocation.getCurrentPosition(p => res(p.coords), rej, {enableHighAccuracy: true, timeout: 12000, maximumAge: 60000});
+  });
+}
+function rkKm(a, b) {
+  const R = 6371, r = Math.PI / 180, dLa = (b.lat - a.latitude) * r, dLo = (b.lon - a.longitude) * r;
+  const x = Math.sin(dLa / 2) ** 2 + Math.cos(a.latitude * r) * Math.cos(b.lat * r) * Math.sin(dLo / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+async function rankCheckin(s, kind, msg, btn, fish, fishBox) {
+  btn.disabled = true; msg.textContent = "현장인지 위치를 확인하는 중…";
+  let pos;
+  try { pos = await rkPos(); } catch (e) {
+    msg.textContent = "위치 확인을 허용해야 점수를 남길 수 있어요. 위치는 확인에만 쓰고 저장하지 않아요.";
+    btn.disabled = false; return;
+  }
+  const km = rkKm(pos, s);
+  if (km > RK_KM) {
+    msg.textContent = `지금 여기서 ${km < 100 ? km.toFixed(1) : Math.round(km)}km 떨어져 있어요. 현장(${RK_KM}km 안)에서만 점수를 남길 수 있어요.`;
+    btn.disabled = false; return;
+  }
+  msg.textContent = "보내는 중…";
   try {
-    const r = await fetch(RANK_API + "/checkin", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({sido: sidoOf(s), spot: s.key || s.name, kind})});
+    const r = await fetch(RANK_API + "/checkin", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({sido: sidoOf(s), spot: s.key || s.name, kind, fish: fish || ""})});
     const j = await r.json();
-    msg.textContent = j.ok ? `${sidoOf(s)} 팀에 ${kind === "catch" ? 3 : 1}점 보탰어요! 조황 탭에서 순위를 볼 수 있어요.`
+    if (j.ok && fishBox) fishBox.hidden = true;
+    msg.textContent = j.ok ? `${sidoOf(s)} 팀에 ${kind === "catch" ? 3 : 1}점 보탰어요!${fish ? ` (${fish})` : ""} 랭킹 탭에서 순위를 볼 수 있어요.`
       : j.reason === "dup" ? "오늘 이 장소엔 이미 남겼어요. 내일 또 와 주세요."
       : j.reason === "limit" ? "오늘은 더 남길 수 없어요. 내일 다시 와 주세요."
       : "지금은 남길 수 없어요.";
@@ -903,11 +938,12 @@ async function renderRank() {
   if (!R || !R.today) { box.innerHTML = ""; return; }
   const tab = box.dataset.t || "today", d = R[tab];
   const max = Math.max(1, ...d.regions.map(r => r.score));
-  box.innerHTML = `<h2>지역 대항 랭킹</h2><p>장소를 열고 '오늘 다녀왔어요'(+1)나 '오늘 잡았어요'(+3)를 누르면 그 지역 점수가 올라가요. 오늘 순위는 매일 자정에 새로 시작해요.</p>
+  box.innerHTML = `<h2>지역 대항 랭킹</h2><p>낚시·차박 현장(장소 2km 안)에서 장소를 열고 '오늘 다녀왔어요'(+1)나 '오늘 잡았어요'(+3)를 누르면 그 시·도 점수가 올라가요. 오늘 순위는 매일 밤 12시에 새로 시작하고, 누적은 계속 쌓여요.</p>
   <div class="rk-tab"><button type="button" data-rt="today" class="${tab === "today" ? "on" : ""}">오늘</button><button type="button" data-rt="all" class="${tab === "all" ? "on" : ""}">누적</button></div>
   ${d.regions.length ? `<div class="rk-seas">${d.seas.map(s => `<span>${esc(s.sea)} <b>${s.score}</b></span>`).join("")}</div>
   <div class="rk-list">${d.regions.map((r, i) => `<div class="rk-row"><span class="rk-n">${i + 1}</span><span class="rk-name">${esc(r.sido)} <small>${esc(r.sea)}</small></span><span class="rk-bar"><i style="width:${Math.round(r.score / max * 100)}%"></i></span><b class="rk-s">${r.score}</b></div>`).join("")}</div>`
-  : `<p class="rk-empty">${tab === "today" ? "오늘은 아직 아무도 점수를 안 남겼어요. 첫 점수를 우리 지역에 보태 보세요!" : "아직 기록이 없어요."}</p>`}`;
+  : `<p class="rk-empty">${tab === "today" ? "오늘은 아직 아무도 점수를 안 남겼어요. 현장에서 첫 점수를 우리 지역에 보태 보세요!" : "아직 기록이 없어요."}</p>`}
+  ${tab === "today" && (R.today.fish || []).length ? `<h3>오늘 잡았다는 소식</h3><div class="rk-catch">${R.today.fish.map(f => `<span>${esc(f.sido)} · ${esc(f.fish)} <b>${f.n}</b></span>`).join("")}</div>` : ""}`;
   box.querySelectorAll("[data-rt]").forEach(b => b.onclick = () => { box.dataset.t = b.dataset.rt; renderRank(); });
 }
 $("chohBody").innerHTML = chohHTML();
