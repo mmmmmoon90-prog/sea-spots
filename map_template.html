@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="낚시차박지도">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<script data-goatcounter="https://fishingmap.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
@@ -242,6 +243,7 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
 .cp-season>b{width:40px;color:var(--fish)}
 .cp-chip{padding:6px 11px;font-size:13.5px}
 .cp-link{border:0;background:none;color:var(--me);font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;padding:6px 0}
+.srcnote{font-size:11.5px;color:var(--muted);line-height:1.5;margin:14px 0 0}
 </style>
 </head>
 <body>
@@ -309,6 +311,16 @@ const META = /*__META__*/{};
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const $ = id => document.getElementById(id);
 const MOBILE = matchMedia("(max-width:760px)").matches;
+// ---------- 방문자 집계 (GoatCounter, 쿠키 없음) ----------
+function track(name) { try { if (window.goatcounter && goatcounter.count) goatcounter.count({path: String(name).slice(0, 80), title: String(name).slice(0, 80), event: true}); } catch (e) {} }
+document.addEventListener("click", e => {
+  const tb = e.target.closest(".tab"); if (tb) { track("탭-" + tb.textContent.trim()); return; }
+  const ch = e.target.closest(".chip[data-v]"); if (ch) { setTimeout(() => ch.classList.contains("on") && track("필터-" + ch.textContent.trim()), 0); return; }
+  const cf = e.target.closest("#chohBody .ch-f"); if (cf) { track("조황탭-어종-" + cf.dataset.f); return; }
+  if (e.target.closest("#chohBody .cp-spot")) { track("조황탭-장소"); return; }
+  const a = e.target.closest("a.act, a.shop-item, a.rep-btn, a.gear"); if (a) { track((a.classList.contains("shop-item") || a.classList.contains("gear") ? "쿠팡-" : "링크-") + a.textContent.trim().slice(0, 30)); return; }
+  if (e.target.closest("#locate")) track("내 위치");
+}, true);
 function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 2200); }
 
 // ---------- 가봤어요·메모 (claude.ai 공유 페이지에서는 계정에, 그 외엔 이 브라우저에 저장) ----------
@@ -448,10 +460,11 @@ function detail(s) {
     ${(s.points || []).length ? `<div class="sec"><b>세부 포인트</b>${s.points.map(p => `<div>· <b>${esc(p.n)}</b>${p.d ? ` ${esc(p.d)}` : ""}</div>`).join("")}</div>` : ""}
     ${s.tips.length ? `<div class="sec"><b>팁</b>${s.tips.map(t => "· " + esc(t)).join("<br>")}</div>` : ""}
     ${s.view.length ? `<div class="sec"><b>뷰</b>${esc(s.view.join(", "))}</div>` : ""}
-    ${s.reviews.length ? `<div class="sec"><b>다녀온 사람들 후기 (좋음 ${s.good} · 별로 ${s.bad})</b>${s.reviews.map(r => `<div class="rev">${r.v === "good" ? "👍" : r.v === "bad" ? "👎" : "🤔"} ${esc(r.t)}</div>`).join("")}</div>` : ""}
+    ${s.good || s.bad ? `<div class="sec"><b>다녀온 사람들 평가</b>👍 좋음 ${s.good} · 👎 별로 ${s.bad}</div>` : ""}
     ${idx}
     ${s.address ? `<div class="sec addr"><span>${esc(s.address)}</span><button type="button" data-copy>복사</button></div>` : ""}
     ${gear(s)}
+    <p class="srcnote">장소 정보는 유튜브 낚시·차박 영상과 댓글에서 언급된 내용을 요약한 거예요. 현장 상황과 다를 수 있으니 출발 전에 확인하세요.</p>
     <div class="mine"><button class="visit" type="button"></button>
       <textarea placeholder="메모·후기 (예: 우럭 5마리, 화장실 깨끗함, 주말엔 자리 없음)" maxlength="1000"></textarea><div class="saved"></div></div>`;
   el.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => copyText(s.address || s.name));
@@ -517,6 +530,7 @@ function select(s) {
   [prev, selId].forEach(i => i != null && SPOTS[i] && SPOTS[i].marker.setIcon(pinIcon(SPOTS[i])));
 }
 function openDetail(s) {
+  track("장소-" + s.name);
   if (!MOBILE) { showOnMap(s, () => s.marker.openPopup()); return; }
   select(s); detailS = s;
   $("dbody").innerHTML = ""; $("dbody").appendChild(detail(s)); $("dbody").scrollTop = 0;
@@ -715,6 +729,7 @@ function fishLine(s) {
   return `<b class="fsel">🐟 ${esc(state.fish)}${esc(size)}</b>${rest.length ? " · " + rest.map(esc).join(", ") : ""}`;
 }
 $("fishsel").addEventListener("change", () => {
+  if ($("fishsel").value) track("어종-" + $("fishsel").value);
   state.fish = $("fishsel").value || null;
   if (state.fish) $("choh").open = false;
   $("fishsel").classList.toggle("on", !!state.fish);

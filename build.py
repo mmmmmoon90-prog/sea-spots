@@ -344,7 +344,7 @@ def main():
     except Exception as e:
         print("이번 주 추천·조황 붙이기 실패:", e)
     with open(os.path.join(HERE, "map_template.html"), encoding="utf-8") as f:
-        html = f.read().replace("/*__SPOTS__*/[]", json.dumps(spots, ensure_ascii=False)) \
+        html = f.read().replace("/*__SPOTS__*/[]", json.dumps([{k: v for k, v in s.items() if k not in ("videos", "reviews")} for s in spots], ensure_ascii=False)) \
                        .replace("/*__META__*/{}", json.dumps(meta, ensure_ascii=False))
     with open(os.path.join(SITE, "index.html"), "w", encoding="utf-8") as f:
         f.write(html)
