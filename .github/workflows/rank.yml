@@ -1,0 +1,39 @@
+name: rank-server
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["worker/**"]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: workers.dev 주소 준비
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          API="https://api.cloudflare.com/client/v4/accounts/$CF_ACC/workers/subdomain"
+          SUB=$(curl -s -H "Authorization: Bearer $CF_TOKEN" "$API" | jq -r '.result.subdomain // empty')
+          if [ -z "$SUB" ]; then
+            for name in seaspots seaspots-map fishingmap-kr seaspots-$RANDOM; do
+              R=$(curl -s -X PUT -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" --data "{\"subdomain\":\"$name\"}" "$API")
+              echo "$R" | jq -c '.success, .errors'
+              if [ "$(echo "$R" | jq -r '.success')" = "true" ]; then SUB=$name; break; fi
+            done
+          fi
+          echo "subdomain: $SUB"
+          echo "RANK_URL=https://sea-spots-rank.$SUB.workers.dev" >> $GITHUB_ENV
+      - name: 배포
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+      - name: 확인
+        run: |
+          sleep 8
+          echo "URL: $RANK_URL"
+          curl -s "$RANK_URL/" ; echo
+          curl -s "$RANK_URL/rank" | head -c 400 ; echo
