@@ -71,8 +71,8 @@ def parse_choh(md):
             if cur is not None and cur["top"]:
                 txt = m.group(1)
                 how = next((w for w in ("선상", "워킹", "갯바위", "방파제", "에기", "루어") if w in txt), "")
-                head = re.split(r"\s(?:선상|워킹|갯바위|방파제|루어|에기)\b", txt)[0]
-                area = _area(head)
+                lead = re.split(r"\s(?:선상|워킹|갯바위|방파제|루어|에기)\b", txt)[0]
+                area = _area(lead)
                 if area and "미상" not in area:
                     cur["top"][-1].setdefault("cases", []).append({"date": m.group(2), "area": area, "how": how})
             continue
