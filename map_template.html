@@ -327,9 +327,9 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
   <nav id="tabs" aria-label="메뉴">
       <button class="tab" data-t="map" type="button"><span>🗺️</span>지도</button>
       <button class="tab" data-t="chohp" type="button"><span>🎣</span>조황</button>
+      <button class="tab" data-t="report" type="button"><span>🏆</span>랭킹</button>
       <button class="tab" data-t="rules" type="button"><span>🚫</span>규정</button>
       <button class="tab" data-t="shop" type="button"><span>🛒</span>쇼핑</button>
-      <button class="tab" data-t="report" type="button"><span>🏆</span>랭킹</button>
     </nav>
   <section id="detail" aria-label="장소 정보">
     <div id="dhead"><i></i><button id="dclose" type="button" aria-label="닫기">✕</button></div>
@@ -726,7 +726,7 @@ function rulesHTML() {
       REGS.filter(r => r.g === g).map(r => `<tr><td><b>${esc(r.k)}</b></td><td>${r.size ? esc(r.size) : "-"}</td><td>${per(r)}</td></tr>`).join("")}</tbody></table></div>`).join("")}
     <p class="cpfoot">수산자원관리법 시행령 별표 1·2와 해양수산부 고시(꽃게·고등어), 시·도 고시(낙지·참문어) 기준이에요 (해양수산부 2026.1.1 기준 안내). 길이는 전장(주둥이~꼬리지느러미 끝), 갈치는 항문장, 꽃게는 두흉갑장, 오징어는 외투장으로 재요. 규정은 바뀔 수 있으니 <a href="${REG_SRC}" target="_blank" rel="noopener">해양수산부 원문</a>도 확인하세요.</p>`;
 }
-// ---------- 하단 탭: 지도 / 조황 / 규정 / 쇼핑 / 제보 ----------
+// ---------- 하단 탭: 지도 / 조황 / 랭킹 / 규정 / 쇼핑 ----------
 let panel = null;
 function paintTabs() {
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", panel ? b.dataset.t === panel : b.dataset.t === "map"));
