@@ -141,6 +141,29 @@ table.idx td,table.idx th{border-bottom:1px solid var(--line);padding:4px 5px;te
 .cpnote{font-size:11.5px;color:var(--muted);line-height:1.5;margin-bottom:8px}
 .gears{display:flex;flex-wrap:wrap;gap:6px}
 .gear{display:inline-block;padding:8px 12px;border-radius:20px;background:var(--chip);color:var(--ink);text-decoration:none;font-size:13px;font-weight:700}
+.rk{border:1.5px solid var(--line);border-radius:14px;padding:12px;margin-top:14px}
+.rk>b{display:block;font-size:15px}
+.rk>small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.rk-b{display:flex;gap:8px;margin-top:10px}
+.rk-b button{flex:1;font:inherit;font-weight:700;font-size:14px;border-radius:12px;padding:11px 6px;cursor:pointer;border:1.5px solid var(--ok);background:transparent;color:var(--ok)}
+.rk-b button small{font-weight:600;opacity:.8}
+.rk-b button:disabled{opacity:.5}
+.rk-msg{font-size:13px;color:var(--ok);margin-top:8px;min-height:1em}
+#rankBox:empty{display:none}
+#rankBox{margin-bottom:22px}
+.rk-tab{display:flex;gap:6px;margin:12px 0 10px}
+.rk-tab button{font:inherit;font-size:13px;font-weight:700;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:6px 14px;cursor:pointer}
+.rk-tab button.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.rk-seas{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.rk-seas span{font-size:13px;border-radius:999px;padding:5px 11px;background:var(--line)}
+.rk-list{display:flex;flex-direction:column;gap:6px}
+.rk-row{display:grid;grid-template-columns:22px minmax(0,7.5em) 1fr auto;align-items:center;gap:8px;font-size:14px}
+.rk-n{font-weight:800;text-align:center}
+.rk-name small{color:var(--muted);font-size:11.5px}
+.rk-bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.rk-bar i{display:block;height:100%;background:var(--ok);border-radius:99px}
+.rk-s{font-variant-numeric:tabular-nums}
+.rk-empty{font-size:14px}
 .mine{border-top:1px dashed var(--line);margin-top:14px;padding-top:12px}
 .visit{font-weight:700;font-size:14px;width:100%;border-radius:12px;padding:11px;cursor:pointer;border:1.5px solid var(--ok);background:transparent;color:var(--ok)}
 .visit.on{background:var(--ok);color:#fff}
@@ -483,6 +506,7 @@ function detail(s) {
     ${s.address ? `<div class="sec addr"><span>${esc(s.address)}</span><button type="button" data-copy>복사</button></div>` : ""}
     ${gear(s)}
     <p class="srcnote">장소 정보는 유튜브 낚시·차박 영상과 댓글에서 언급된 내용을 요약한 거예요. 현장 상황과 다를 수 있으니 출발 전에 확인하세요.</p>
+    ${RANK_API && sidoOf(s) ? `<div class="rk"><b>지역 대항전</b><small>${esc(sidoOf(s))} 팀에 점수를 보태요 · 하루 한 번씩</small><div class="rk-b"><button type="button" data-rk="visit">🚩 오늘 다녀왔어요 <small>+1</small></button><button type="button" data-rk="catch">🎣 오늘 잡았어요 <small>+3</small></button></div><div class="rk-msg" role="status"></div></div>` : ""}
     <div class="mine"><button class="visit" type="button"></button>
       <textarea placeholder="메모·후기 (예: 우럭 5마리, 화장실 깨끗함, 주말엔 자리 없음)" maxlength="1000"></textarea><div class="saved"></div></div>`;
   el.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => copyText(s.address || s.name));
@@ -493,6 +517,7 @@ function detail(s) {
   let timer; const flush = () => { clearTimeout(timer); if (ta.value !== (mineOf(s).memo || "")) saveMine(s, {memo: ta.value}, st); };
   ta.oninput = () => { st.textContent = ""; clearTimeout(timer); timer = setTimeout(flush, 1200); };
   ta.onblur = flush;
+  el.querySelectorAll("[data-rk]").forEach(b => b.onclick = () => rankCheckin(s, b.dataset.rk, el.querySelector(".rk-msg"), b));
   return el;
 }
 
@@ -734,6 +759,7 @@ function reportHTML() {
     <div class="sup">${SUPPORT.kakao ? `<a class="rep-btn sup-k" href="${esc(SUPPORT.kakao)}" target="_blank" rel="noopener">카카오페이로 응원</a>` : ""}${SUPPORT.toss ? `<a class="rep-btn sup-t" href="${esc(SUPPORT.toss)}" target="_blank" rel="noopener">토스로 응원</a>` : ""}</div>` : ""}`;
 }
 const NEWS = [
+  {d: "11.27", t: "🏆 지역 대항 랭킹 시작", s: "장소에서 '오늘 다녀왔어요·잡았어요'를 누르면 우리 지역 점수가 올라가요. 순위는 조황 탭에서 봐요."},
   {d: "11.27", t: "조황 탭이 생겼어요", s: "바다별로 요즘 잡히는 어종, 호황 소식, 오늘 낚시 여건 좋은 곳을 한 번에 봐요."},
   {d: "11.27", t: "필터를 다시 정리했어요", s: "낚시·차박은 필터로 옮겼고, 어종 전체는 맨 앞에 고정했어요."},
   {d: "11.27", t: "⭐ 이번 주 추천", s: "이번 주말 바다별 추천 포인트와 캠낚 스팟에 별 표시가 붙어요."}
@@ -831,7 +857,7 @@ function pickFish(f) {
 }
 const md2 = s => { const [, m, d] = String(s).split("-").map(Number); return `${m}/${d}`; };
 function chohHTML() {
-  const out = [];
+  const out = ['<div id="rankBox"></div>'];
   if (CHOH) {
     out.push(`<h2>요즘 조황</h2><p>${md2(CHOH.date)} 기준 · ${esc(CHOH.note)}. 유튜브 바다낚시 조행 영상에서 뽑은 기록이라 실제와 다를 수 있어요. 어종을 누르면 지도에서 그 어종이 잡히는 곳만 보여줘요.</p>`);
     CHOH.seas.forEach(s => {
@@ -848,7 +874,44 @@ function chohHTML() {
   out.push(`<h3>오늘 금어기인 어종</h3><p class="rg-today">${now.length ? now.map(r => `<span class="rg-now">${esc(r.k)}</span>`).join(" ") : "오늘은 금어기인 주요 어종이 없어요."}</p><button type="button" class="cp-link" id="toRules">금지체장·금어기 전체 보기 ›</button>`);
   return out.join("");
 }
+// ---------- 지역 대항 랭킹 ----------
+const RANK_API = "https://sea-spots-rank.mmmmmoon90.workers.dev";
+const sidoOf = s => (s.region || "").split(" ")[0];
+let RANK = null;
+async function loadRank(force) {
+  if (!RANK_API) return null;
+  if (RANK && !force) return RANK;
+  try { const r = await fetch(RANK_API + "/rank", {cache: "no-store"}); RANK = await r.json(); } catch (e) { RANK = null; }
+  return RANK;
+}
+async function rankCheckin(s, kind, msg, btn) {
+  btn.disabled = true; msg.textContent = "보내는 중…";
+  try {
+    const r = await fetch(RANK_API + "/checkin", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({sido: sidoOf(s), spot: s.key || s.name, kind})});
+    const j = await r.json();
+    msg.textContent = j.ok ? `${sidoOf(s)} 팀에 ${kind === "catch" ? 3 : 1}점 보탰어요! 조황 탭에서 순위를 볼 수 있어요.`
+      : j.reason === "dup" ? "오늘 이 장소엔 이미 남겼어요. 내일 또 와 주세요."
+      : j.reason === "limit" ? "오늘은 더 남길 수 없어요. 내일 다시 와 주세요."
+      : "지금은 남길 수 없어요.";
+    if (j.ok) { track("랭킹-" + (kind === "catch" ? "잡았어요" : "다녀왔어요")); await loadRank(true); renderRank(); }
+  } catch (e) { msg.textContent = "연결이 안 돼요. 잠시 후 다시 해 주세요."; }
+  btn.disabled = false;
+}
+async function renderRank() {
+  const box = $("rankBox"); if (!box) return;
+  const R = await loadRank();
+  if (!R || !R.today) { box.innerHTML = ""; return; }
+  const tab = box.dataset.t || "today", d = R[tab];
+  const max = Math.max(1, ...d.regions.map(r => r.score));
+  box.innerHTML = `<h2>지역 대항 랭킹</h2><p>장소를 열고 '오늘 다녀왔어요'(+1)나 '오늘 잡았어요'(+3)를 누르면 그 지역 점수가 올라가요. 오늘 순위는 매일 자정에 새로 시작해요.</p>
+  <div class="rk-tab"><button type="button" data-rt="today" class="${tab === "today" ? "on" : ""}">오늘</button><button type="button" data-rt="all" class="${tab === "all" ? "on" : ""}">누적</button></div>
+  ${d.regions.length ? `<div class="rk-seas">${d.seas.map(s => `<span>${esc(s.sea)} <b>${s.score}</b></span>`).join("")}</div>
+  <div class="rk-list">${d.regions.map((r, i) => `<div class="rk-row"><span class="rk-n">${i + 1}</span><span class="rk-name">${esc(r.sido)} <small>${esc(r.sea)}</small></span><span class="rk-bar"><i style="width:${Math.round(r.score / max * 100)}%"></i></span><b class="rk-s">${r.score}</b></div>`).join("")}</div>`
+  : `<p class="rk-empty">${tab === "today" ? "오늘은 아직 아무도 점수를 안 남겼어요. 첫 점수를 우리 지역에 보태 보세요!" : "아직 기록이 없어요."}</p>`}`;
+  box.querySelectorAll("[data-rt]").forEach(b => b.onclick = () => { box.dataset.t = b.dataset.rt; renderRank(); });
+}
 $("chohBody").innerHTML = chohHTML();
+renderRank();
 $("chohBody").addEventListener("click", e => {
   const f = e.target.closest(".ch-f"); if (f) { pickFish(f.dataset.f); return; }
   const sp = e.target.closest(".cp-spot");
