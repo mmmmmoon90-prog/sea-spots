@@ -1,5 +1,5 @@
 // 바다낚시·차박 지도 — 지역 대항 랭킹 서버
-// POST /checkin {sido, spot, kind:"visit"|"catch"}  → 점수 반영
+// POST /checkin {sido, spot, kind:"visit"|"catch", fish?}  → 점수 반영
 // GET  /rank                                         → 오늘·누적 랭킹
 import { DurableObject } from "cloudflare:workers";
 
@@ -47,11 +47,12 @@ export class Board extends DurableObject {
     this.sql = ctx.storage.sql;
     this.sql.exec(`
       CREATE TABLE IF NOT EXISTS pts (day TEXT, sido TEXT, kind TEXT, n INTEGER, PRIMARY KEY (day, sido, kind));
+      CREATE TABLE IF NOT EXISTS catches (day TEXT, sido TEXT, fish TEXT, n INTEGER, PRIMARY KEY (day, sido, fish));
       CREATE TABLE IF NOT EXISTS seen (day TEXT, who TEXT, spot TEXT, kind TEXT, PRIMARY KEY (day, who, spot, kind));
     `);
   }
 
-  checkin(day, who, sido, spot, kind) {
+  checkin(day, who, sido, spot, kind, fish) {
     const used = this.sql.exec("SELECT COUNT(*) AS c FROM seen WHERE day=? AND who=?", day, who).one().c;
     if (used >= DAILY_MAX) return { ok: false, reason: "limit" };
     const dup = this.sql.exec("SELECT 1 FROM seen WHERE day=? AND who=? AND spot=? AND kind=?", day, who, spot, kind).toArray();
@@ -61,6 +62,12 @@ export class Board extends DurableObject {
       "INSERT INTO pts VALUES (?,?,?,1) ON CONFLICT(day, sido, kind) DO UPDATE SET n = n + 1",
       day, sido, kind,
     );
+    if (kind === "catch" && fish) {
+      this.sql.exec(
+        "INSERT INTO catches VALUES (?,?,?,1) ON CONFLICT(day, sido, fish) DO UPDATE SET n = n + 1",
+        day, sido, fish,
+      );
+    }
     // 오래된 중복 방지 기록은 지운다
     this.sql.exec("DELETE FROM seen WHERE day < ?", kstDay(new Date(Date.now() - 2 * 864e5)));
     return { ok: true, left: DAILY_MAX - used - 1 };
@@ -84,6 +91,9 @@ export class Board extends DurableObject {
     };
     const today = agg(this.sql.exec("SELECT sido, kind, n FROM pts WHERE day=?", day).toArray());
     const all = agg(this.sql.exec("SELECT sido, kind, SUM(n) AS n FROM pts GROUP BY sido, kind").toArray());
+    today.fish = this.sql.exec(
+      "SELECT sido, fish, n FROM catches WHERE day=? ORDER BY n DESC LIMIT 12", day,
+    ).toArray();
     return { day, today, all };
   }
 }
@@ -108,9 +118,10 @@ export default {
       const sido = String(b.sido || "");
       const kind = String(b.kind || "");
       const spot = String(b.spot || "").slice(0, 40);
+      const fish = kind === "catch" ? String(b.fish || "기타").replace(/[<>&"'\s]/g, "").slice(0, 12) || "기타" : "";
       if (!SEA[sido] || !POINT[kind] || !spot) return json(req, { ok: false, reason: "bad" }, 400);
       const who = await hashWho(req, day);
-      const r = await board.checkin(day, who, sido, spot, kind);
+      const r = await board.checkin(day, who, sido, spot, kind, fish);
       return json(req, r, r.ok ? 200 : 429);
     }
 
